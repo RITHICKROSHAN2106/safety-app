@@ -36,20 +36,22 @@ dependencies:
 
   # UI
   cupertino_icons: ^1.0.6
-  flutter_spinkit: ^5.2.0
+  # flutter_spinkit: ^5.2.1  # Temporarily disabled for compatibility
   fluttertoast: ^8.2.4
   intl: ^0.18.1
 
   # Audio
   audioplayers: ^5.2.1
-  flutter_sound: ^9.2.13
+  # flutter_sound: ^9.3.2  # Temporarily disabled for web compatibility
 
   # Image & Camera
   image_picker: ^1.0.7
   camera: ^0.10.5+9
 
   # ML & AI
-  google_ml_kit: ^0.16.3
+  # google_ml_kit: ^0.16.3  # Temporarily disabled - incompatible with AGP 8.1
+  google_mlkit_text_recognition: ^0.13.0
+  google_mlkit_face_detection: ^0.10.0
   tflite_flutter: ^0.10.4
 
   # Video Streaming (Agora)

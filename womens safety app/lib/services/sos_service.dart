@@ -1,6 +1,7 @@
 /// SOS Service
 /// Core service handling SOS alerts, countdown, alarm, and evidence capture
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
@@ -105,42 +106,47 @@ class SosService {
       // 4. Send alerts to all guardians
       List<String> alertsSent = [];
 
-      for (Guardian guardian in guardians) {
-        // Send WhatsApp alert
-        try {
-          await _whatsappService.sendSosAlert(
-            phoneNumber: guardian.phone,
-            userName: userName,
-            latitude: location.latitude,
-            longitude: location.longitude,
-            address: location.address,
-          );
-          alertsSent.add('whatsapp');
-        } catch (e) {
-          print('WhatsApp failed for ${guardian.phone}: $e');
-        }
-
-        // Send SMS alert
-        try {
-          await _smsService.sendSosAlert(
-            phoneNumber: guardian.phone,
-            userName: userName,
-            latitude: location.latitude,
-            longitude: location.longitude,
-            address: location.address,
-          );
-          alertsSent.add('sms');
-        } catch (e) {
-          print('SMS failed for ${guardian.phone}: $e');
-        }
-
-        // Auto-call primary guardian
-        if (guardian.isPrimary) {
+      if (guardians.isEmpty) {
+        print('DEMO MODE: No guardians to alert. Location captured: ${location.latitude}, ${location.longitude}');
+        alertsSent.add('demo_mode');
+      } else {
+        for (Guardian guardian in guardians) {
+          // Send WhatsApp alert
           try {
-            await makeEmergencyCall(guardian.phone);
-            alertsSent.add('call');
+            await _whatsappService.sendSosAlert(
+              phoneNumber: guardian.phone,
+              userName: userName,
+              latitude: location.latitude,
+              longitude: location.longitude,
+              address: location.address,
+            );
+            alertsSent.add('whatsapp');
           } catch (e) {
-            print('Call failed for ${guardian.phone}: $e');
+            print('WhatsApp failed for ${guardian.phone}: $e');
+          }
+
+          // Send SMS alert
+          try {
+            await _smsService.sendSosAlert(
+              phoneNumber: guardian.phone,
+              userName: userName,
+              latitude: location.latitude,
+              longitude: location.longitude,
+              address: location.address,
+            );
+            alertsSent.add('sms');
+          } catch (e) {
+            print('SMS failed for ${guardian.phone}: $e');
+          }
+
+          // Auto-call primary guardian
+          if (guardian.isPrimary) {
+            try {
+              await makeEmergencyCall(guardian.phone);
+              alertsSent.add('call');
+            } catch (e) {
+              print('Call failed for ${guardian.phone}: $e');
+            }
           }
         }
       }

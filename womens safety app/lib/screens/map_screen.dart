@@ -70,7 +70,7 @@ class _MapScreenState extends State<MapScreen> {
                           point: LatLng(location.latitude, location.longitude),
                           width: 80,
                           height: 80,
-                          builder: (context) => const Icon(
+                          child: const Icon(
                             Icons.location_pin,
                             color: Colors.red,
                             size: 50,

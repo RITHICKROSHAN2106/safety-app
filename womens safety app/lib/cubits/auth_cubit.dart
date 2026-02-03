@@ -38,8 +38,8 @@ class AuthError extends AuthState {
 
 // Auth Cubit
 class AuthCubit extends Cubit<AuthState> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseAuth? _auth;
+  FirebaseFirestore? _firestore;
 
   AuthCubit() : super(AuthInitial()) {
     _checkAuthStatus();
@@ -47,19 +47,27 @@ class AuthCubit extends Cubit<AuthState> {
 
   // Check current auth status
   void _checkAuthStatus() {
-    _auth.authStateChanges().listen((User? firebaseUser) {
-      if (firebaseUser != null) {
-        _loadUserData(firebaseUser.uid);
-      } else {
-        emit(AuthUnauthenticated());
-      }
-    });
+    try {
+      _auth = FirebaseAuth.instance;
+      _firestore = FirebaseFirestore.instance;
+      
+      _auth!.authStateChanges().listen((User? firebaseUser) {
+        if (firebaseUser != null) {
+          _loadUserData(firebaseUser.uid);
+        } else {
+          emit(AuthUnauthenticated());
+        }
+      });
+    } catch (e) {
+      print('Firebase auth not available: $e');
+      emit(AuthUnauthenticated());
+    }
   }
 
   // Load user data from Firestore
   Future<void> _loadUserData(String uid) async {
     try {
-      final doc = await _firestore.collection('users').doc(uid).get();
+      final doc = await _firestore!.collection('users').doc(uid).get();
       if (doc.exists) {
         final user = UserModel.fromMap(doc.data()!);
         emit(AuthAuthenticated(user));
@@ -78,11 +86,15 @@ class AuthCubit extends Cubit<AuthState> {
     required String name,
     required String phone,
   }) async {
+    if (_auth == null) {
+      emit(AuthError('Firebase not available'));
+      return;
+    }
     try {
       emit(AuthLoading());
 
       // Create Firebase user
-      final credential = await _auth.createUserWithEmailAndPassword(
+      final credential = await _auth!.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -97,7 +109,7 @@ class AuthCubit extends Cubit<AuthState> {
           createdAt: DateTime.now(),
         );
 
-        await _firestore.collection('users').doc(user.uid).set(user.toMap());
+        await _firestore!.collection('users').doc(user.uid).set(user.toMap());
 
         emit(AuthAuthenticated(user));
       }
@@ -113,10 +125,14 @@ class AuthCubit extends Cubit<AuthState> {
     required String email,
     required String password,
   }) async {
+    if (_auth == null) {
+      emit(AuthError('Firebase not available'));
+      return;
+    }
     try {
       emit(AuthLoading());
 
-      await _auth.signInWithEmailAndPassword(
+      await _auth!.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -131,8 +147,9 @@ class AuthCubit extends Cubit<AuthState> {
 
   // Logout
   Future<void> logout() async {
+    if (_auth == null) return;
     try {
-      await _auth.signOut();
+      await _auth!.signOut();
       emit(AuthUnauthenticated());
     } catch (e) {
       emit(AuthError('Logout failed'));
@@ -141,8 +158,9 @@ class AuthCubit extends Cubit<AuthState> {
 
   // Reset password
   Future<void> resetPassword(String email) async {
+    if (_auth == null) throw Exception('Firebase not available');
     try {
-      await _auth.sendPasswordResetEmail(email: email);
+      await _auth!.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (e) {
       throw Exception(_getAuthErrorMessage(e.code));
     }
@@ -150,8 +168,12 @@ class AuthCubit extends Cubit<AuthState> {
 
   // Update user profile
   Future<void> updateProfile(UserModel updatedUser) async {
+    if (_firestore == null) {
+      emit(AuthError('Firebase not available'));
+      return;
+    }
     try {
-      await _firestore
+      await _firestore!
           .collection('users')
           .doc(updatedUser.uid)
           .update(updatedUser.toMap());

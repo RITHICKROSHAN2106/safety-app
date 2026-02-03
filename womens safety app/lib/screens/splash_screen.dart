@@ -2,7 +2,7 @@
 /// Initial loading screen with app branding
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
+// import 'package:flutter_spinkit/flutter_spinkit.dart';  // Temporarily disabled
 import '../cubits/auth_cubit.dart';
 import '../routes.dart';
 
@@ -27,11 +27,17 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     // Check auth state
-    final authState = context.read<AuthCubit>().state;
+    try {
+      final authState = context.read<AuthCubit>().state;
 
-    if (authState is AuthAuthenticated) {
-      Navigator.pushReplacementNamed(context, AppRoutes.home);
-    } else {
+      if (authState is AuthAuthenticated) {
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      }
+    } catch (e) {
+      // If Firebase isn't available, go to login
+      print('Auth check failed: $e');
       Navigator.pushReplacementNamed(context, AppRoutes.login);
     }
   }
@@ -80,9 +86,8 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               const SizedBox(height: 48),
               // Loading Indicator
-              SpinKitWave(
+              const CircularProgressIndicator(
                 color: Colors.white,
-                size: 40.0,
               ),
             ],
           ),

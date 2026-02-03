@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../cubits/auth_cubit.dart';
 import '../cubits/guardian_cubit.dart';
+import '../cubits/sos_cubit.dart';
 import '../routes.dart';
 
 class HomeScreen extends StatefulWidget {

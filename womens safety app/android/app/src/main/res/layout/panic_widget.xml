@@ -19,7 +19,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@android:drawable/ic_menu_shield"
+            android:src="@android:drawable/ic_dialog_alert"
             android:tint="#E91E63"/>
 
         <TextView

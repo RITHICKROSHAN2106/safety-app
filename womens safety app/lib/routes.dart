@@ -26,22 +26,22 @@ class AppRoutes {
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
-      case splash:
+      case AppRoutes.splash:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
 
-      case login:
+      case AppRoutes.login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
 
-      case register:
+      case AppRoutes.register:
         return MaterialPageRoute(builder: (_) => const RegisterScreen());
 
-      case home:
+      case AppRoutes.home:
         return MaterialPageRoute(builder: (_) => const HomeScreen());
 
-      case sos:
+      case AppRoutes.sos:
         return MaterialPageRoute(builder: (_) => const SosScreen());
 
-      case map:
+      case AppRoutes.map:
         final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
           builder: (_) => MapScreen(
@@ -50,20 +50,20 @@ class AppRoutes {
           ),
         );
 
-      case guardians:
+      case AppRoutes.guardians:
         return MaterialPageRoute(
           builder: (_) => const GuardianManagementScreen(),
         );
 
-      case revolutionaryFeatures:
+      case AppRoutes.revolutionaryFeatures:
         return MaterialPageRoute(
           builder: (_) => const RevolutionaryFeaturesScreen(),
         );
 
-      case profile:
+      case AppRoutes.profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
 
-      case settings:
+      case AppRoutes.settings:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
 
       default:

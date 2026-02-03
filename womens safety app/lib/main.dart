@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'firebase_options.dart';
 import 'app.dart';
 import 'services/notification_service.dart';
 import 'services/permissions_service.dart';
@@ -24,11 +25,23 @@ void main() async {
   ]);
 
   // Initialize Firebase
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    // Initialize core services that depend on Firebase
+    await NotificationService().initialize();
+  } catch (e) {
+    print('Firebase initialization failed: $e');
+    // Continue without Firebase for now (web platform)
+  }
 
-  // Initialize core services
-  await NotificationService().initialize();
-  await PermissionsService().requestInitialPermissions();
+  // Initialize permissions
+  try {
+    await PermissionsService().requestInitialPermissions();
+  } catch (e) {
+    print('Permissions request failed: $e');
+  }
 
   // Get shared preferences instance
   final prefs = await SharedPreferences.getInstance();

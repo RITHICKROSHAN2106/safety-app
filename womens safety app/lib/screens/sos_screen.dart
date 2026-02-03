@@ -43,16 +43,32 @@ class _SosScreenState extends State<SosScreen> {
     final user = context.read<AuthCubit>().getCurrentUser();
     final guardians = context.read<GuardianCubit>().getGuardians();
 
-    if (user != null && guardians.isNotEmpty) {
+    print('DEBUG: Confirming SOS - User: ${user?.name}, Guardians: ${guardians.length}');
+
+    if (user != null) {
+      if (guardians.isEmpty) {
+        // Demo mode - show test alert
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('SOS Demo Mode: No guardians added yet. Add guardians to send real alerts.'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        // Still trigger SOS to show the UI flow
+      }
+      
       context.read<SosCubit>().triggerSos(
             userId: user.uid,
             userName: user.name,
             guardians: guardians,
           );
     } else {
+      print('DEBUG: SOS blocked - No user logged in');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please add guardians before triggering SOS'),
+          content: Text('Please sign in first'),
+          duration: Duration(seconds: 3),
         ),
       );
       _cancelSos();

@@ -1,5 +1,4 @@
 package com.example.women_safety_app
-
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
