@@ -1,0 +1,90 @@
+Women Safety App - Detailed Guide
+Generated: 2025-12-19
+
+1) Purpose and Core Value
+- Rapid SOS with multi-channel alerts, real-time location sharing, AI safety checks, and a one-tap panic widget.
+- Built with Flutter (Dart), Firebase backend, Kotlin widget bridge, and a modular service architecture.
+
+2) User-Facing Features (How they work)
+- SOS Flow: User taps SOS → countdown → loud alarm → evidence capture (photo/audio/video optional) → alerts via WhatsApp/SMS/Email/Push → call escalation to guardians.
+- Location Sharing: From Map screen or Profile Quick Action, fetches current GPS (Geolocator), builds Google Maps link, lets user pick guardians, and opens WhatsApp/SMS with prefilled message.
+- Guardians: Add/edit/remove guardians, mark primary. Stored in Firestore. Used by SOS and share flows to target contacts.
+- Revolutionary Features Hub (8 items):
+  1) AI Danger Prediction (TFLite model) – risk score based on context.
+  2) Voice Distress Analysis – detects distress patterns/keywords from mic.
+  3) Face Recognition – trusted faces vs unknown using ML Kit.
+  4) Fake Call – schedules simulated incoming call UI.
+  5) Safe Routes – opens Google Maps walking directions from current location.
+  6) Evidence Capture – photo/audio/video for proof.
+  7) Live Streaming (Agora) – realtime video to guardians (needs APP_ID).
+  8) Guardian Volunteers – community/extended guardian network.
+- Ride/Route Safety: Ride tracking (Uber/Ola), safe journey monitoring, route deviation alerts, shake-to-SOS, voice activation trigger.
+- Panic Home Widget: 2x2 Android widget with red SOS button, status text, contact count; tapping triggers panic intent or launches app.
+- Settings & Profile: Theme toggle, notification and permission prompts, password reset, Quick Actions section.
+
+3) Key Screens and Navigation
+- Routes defined in lib/app.dart: Splash (/), Login (/login), Home (/home), SOS (/sos), Map (/map), Profile (/profile), Settings (/settings), Revolutionary Features (/revolutionary-features), Guardian Management (/guardians), Safety Checklist (/safety-checklist).
+- Profile Quick Actions: Share My Location → /map; Revolutionary Features → /revolutionary-features; Panic Widget Setup dialog.
+- Map Screen: OpenStreetMap view, current location, Share button (WhatsApp/SMS contacts dialog).
+- Revolutionary Features: Lists 8 advanced items; Safe Routes FAB opens Google Maps directions.
+
+4) Core Services (lib/services) and Responsibilities
+- sos_service.dart: Orchestrates SOS steps; coordinates alarm, evidence, alerts, escalation.
+- location_share_service.dart: Gets GPS, builds Maps link, shares via WhatsApp/SMS with fallbacks.
+- whatsapp_service.dart: Formats SOS messages, per-contact send with delay and error handling.
+- sms_service.dart: Compact SOS text, multiple URI schemes (sms:, smsto:, mms:) to maximize compatibility.
+- panic_widget_service.dart: Bridges Flutter and Android widget (HomeWidget storage, trigger checks, updates).
+- protection_service.dart: Background pending SOS trigger checks.
+- notification_service.dart: Local/push notification helper APIs.
+- permissions_service.dart: Centralized runtime permission requests (location, notifications, camera, mic).
+- ai_danger_prediction_service.dart: TFLite model inference for risk.
+- distress_voice_analysis_service.dart: Audio-based distress detection.
+- face_recognition_service.dart: Face match/unknown detection using ML Kit.
+- live_streaming_service.dart: Agora integration for video; requires APP_ID config.
+- offline_queue_service.dart: Queues actions when offline and retries when online.
+- guardian_network_service.dart / guardian_tracking_service.dart / ride_tracking_service.dart: Guardian management and journey safety.
+- fake_call_service.dart: Simulated incoming call UI.
+
+5) Android Widget Implementation
+- PanicWidgetProvider.kt: AppWidgetProvider handling updates and PANIC_BUTTON_CLICKED intent; reads HomeWidget data (user_name, contact_count, status).
+- Layout: res/layout/panic_widget.xml (red gradient card, circular SOS button, status text, contact count).
+- Metadata: res/xml/panic_widget_info.xml (min size, category home_screen, preview).
+- Drawables: widget_background.xml (gradient), panic_button_bg.xml (circular red), panic_widget_preview.xml.
+- Manifest: Receiver registered with APPWIDGET_UPDATE and custom panic intent.
+
+6) Startup and Flows (main.dart)
+- Initializes Firebase, notification service, permission checks, offline queue, panic widget.
+- Checks ProtectionService pending triggers and PanicWidgetService widget trigger.
+- Provides blocs (ThemeCubit, AuthCubit, LocationCubit, SosCubit) and runs WomenSafetyApp with navigatorKey.
+
+7) Data and Models
+- app_user.dart: user profile basics.
+- guardian.dart: emergency contact info, primary flag.
+- sos_alert.dart: alert payload structure.
+- Firestore collections: users (with emergencyContactIds), guardians, alerts/logs (as configured).
+
+8) Setup Requirements
+- Firebase: Add android/app/google-services.json (critical). iOS plist if applicable.
+- Permissions: Location, camera, microphone, notifications, vibration; accept runtime prompts.
+- Optional: Agora APP_ID in live_streaming_service.dart; TFLite model in assets/models/ for danger prediction.
+- Assets: Ensure animations/models folders present if using Lottie/TFLite.
+
+9) Testing Checklist (manual)
+- Profile → Quick Actions → all 3 entries work (Map, Features, Widget dialog).
+- Map → Share → choose guardian → WhatsApp/SMS opens with Maps link.
+- Revolutionary Features → Safe Routes FAB opens Google Maps.
+- Widget → Add to home (launcher supports widgets) → tap triggers app/intent.
+- SOS → triggers alerts (with real creds, permissions granted).
+
+10) Common Issues and Fixes
+- Firebase init fails: Add google-services.json to android/app.
+- WhatsApp/SMS not opening: Ensure app installed and phone numbers include country code.
+- Location fails: Grant location permission in system settings.
+- Widget missing: Some launchers hide widgets; ensure category=home_screen and try a standard launcher.
+
+11) Build and Install
+- Debug: flutter run -d android
+- Release APK: flutter build apk --release
+- Install via ADB: adb install -r build/app/outputs/flutter-apk/app-release.apk
+
+For a richer visual doc, open project_documentation.html in the same folder.

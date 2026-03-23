@@ -1,0 +1,69 @@
+Women Safety App - Complete Overview
+Generated: 2025-12-19
+
+1) What this app does
+- Provides rapid SOS, multi-channel alerts, live tracking, AI-driven risk checks, and a home-screen panic widget.
+- Built with Flutter + Firebase; Android widget via Kotlin + home_widget plugin.
+
+2) Core Features (user-facing)
+- SOS: Countdown, loud alarm, multi-channel alerts (WhatsApp/SMS/Email/Push), evidence capture (photo/audio/video), call escalation.
+- Location Sharing: One-tap share of current location to guardians with Google Maps link (WhatsApp/SMS).
+- Guardians: Add/edit/remove guardians, mark primary, live tracking, route deviation alerts.
+- Revolutionary Features Hub (8 items): AI danger prediction, voice distress analysis, face recognition, fake call, safe routes (Google Maps walking directions), evidence capture, live streaming (Agora), volunteer network.
+- Ride/Route Safety: Ride tracking, safe journey monitoring, shake-to-SOS, voice activation.
+- Panic Home Widget: 2x2 widget with SOS button, status text, contact count; taps trigger panic or launch app.
+- Settings & Profile: Theme toggle, permissions, notifications, quick actions, password reset.
+
+3) Key Screens and Routes (MaterialApp routes in lib/app.dart)
+- Splash (/), Login (/login), Home (/home), SOS (/sos), Map (/map), Profile (/profile), Settings (/settings), Revolutionary Features (/revolutionary-features), Guardian Management (/guardians), Safety Checklist (/safety-checklist).
+- Quick Actions (Profile): Share My Location → /map; Revolutionary Features → /revolutionary-features; Panic Widget Setup dialog.
+
+4) Important Services (lib/services)
+- sos_service.dart: Orchestrates 9-step SOS flow, alarm, escalation.
+- location_share_service.dart: Builds Google Maps link, shares via WhatsApp/SMS; handles geolocation errors.
+- whatsapp_service.dart: Formatted SOS messages, per-contact error handling, delays, success tracking.
+- sms_service.dart: Compact SOS text with multiple URI fallbacks (sms:, smsto:, mms:).
+- panic_widget_service.dart: Bridges Flutter and Android widget (HomeWidget data storage, trigger checks).
+- protection_service.dart: Background/pending SOS trigger checks.
+- notification_service.dart: Local/push notification helpers.
+- permissions_service.dart: Requests/validates permissions (location, notifications, mic, camera).
+- ai_danger_prediction_service.dart / distress_voice_analysis_service.dart / face_recognition_service.dart / live_streaming_service.dart: AI/ML and streaming capabilities (Agora APP_ID required; TFLite model required for danger prediction).
+- offline_queue_service.dart: Queues operations when offline.
+- guardian_network_service.dart / guardian_tracking_service.dart / ride_tracking_service.dart: Guardian and journey safety.
+- fake_call_service.dart: Simulated incoming calls.
+
+5) Android Widget (android/app/src/main)
+- PanicWidgetProvider.kt: Handles widget update, click intent (PANIC_BUTTON_CLICKED), SharedPreferences data.
+- panic_widget.xml: Layout (red gradient card, circular SOS button, status, contact count).
+- panic_widget_info.xml: Metadata (min size, category home_screen, preview).
+- Drawables: widget_background.xml (gradient), panic_button_bg.xml (circular red), panic_widget_preview.xml.
+- Manifest: Receiver registered with APPWIDGET_UPDATE and custom intent.
+
+6) Setup Requirements
+- Firebase: Add android/app/google-services.json (and iOS plist if applicable).
+- Permissions: Location, camera, microphone, notifications, vibration; accept runtime prompts.
+- Optional: Agora APP_ID in live_streaming_service.dart; TFLite model in assets/models/.
+
+7) How main.dart boots
+- Initializes Firebase, notifications, permissions, offline queue, panic widget.
+- Checks ProtectionService pending triggers and widget panic triggers.
+- Runs MultiBlocProvider (ThemeCubit, AuthCubit, LocationCubit, SosCubit) → WomenSafetyApp.
+
+8) How SOS/Share flows work
+- SOS: Trigger → countdown → alarm → evidence capture → multi-channel alerts → escalation calls.
+- Share Location: Map screen FAB → loads guardians from Firestore → dialog with WhatsApp/SMS buttons → sends Google Maps link.
+- Safe Routes: Revolutionary features FAB → opens Google Maps walking directions from current location.
+
+9) Testing Checklist (manual)
+- Profile → Quick Actions → all 3 entries navigate/show dialog.
+- Map → Share → choose contact → WhatsApp/SMS opens with link.
+- Revolutionary Features → Safe Routes → Google Maps opens.
+- Widget → Add to home → tap widget triggers app/intent.
+- SOS → triggers alerts (with real credentials and permissions).
+
+10) Known External Requirements
+- WhatsApp/SMS require apps installed and phone numbers with country code.
+- Firebase init fails without google-services.json.
+- Widget visibility depends on launcher supporting home widgets.
+
+File generated for quick reference. For richer visuals, see project_documentation.html in the same folder.
