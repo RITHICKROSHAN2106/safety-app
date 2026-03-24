@@ -6,8 +6,8 @@ import 'dart:ui';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 class FaceRecognitionService {
-  final FaceDetector _faceDetector = GoogleMlKit.vision.faceDetector(
-    FaceDetectorOptions(
+  final FaceDetector _faceDetector = FaceDetector(
+    options: FaceDetectorOptions(
       enableContours: true,
       enableClassification: true,
       enableTracking: true,
