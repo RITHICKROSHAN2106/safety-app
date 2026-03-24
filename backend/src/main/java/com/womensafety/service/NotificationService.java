@@ -24,6 +24,7 @@ public class NotificationService {
         String title = "🚨 SOS Alert from " + alert.getUser().getName();
         String body = String.format("Emergency at: %.6f, %.6f. Please respond immediately!", 
                 alert.getLatitude(), alert.getLongitude());
+        log.info("Prepared SOS notification payload - title: {}, body: {}", title, body);
         
         contacts.forEach(contact -> {
             log.info("Notifying emergency contact: {} ({}) about alert {}", 

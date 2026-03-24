@@ -41,6 +41,7 @@ public class User {
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private Role role = Role.USER;
     
     @Column(name = "fcm_token")
@@ -50,6 +51,7 @@ public class User {
     private String profileImageUrl;
     
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
     
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)

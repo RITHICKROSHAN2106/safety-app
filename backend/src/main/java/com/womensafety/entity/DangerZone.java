@@ -41,6 +41,7 @@ public class DangerZone {
     private String description;
     
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
     
     public enum ThreatLevel {

@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'cubits/theme_cubit.dart';
-import 'cubits/auth_cubit.dart';
 import 'routes.dart';
 import 'screens/splash_screen.dart';
 
@@ -39,7 +38,7 @@ class WomenSafetyApp extends StatelessWidget {
         centerTitle: true,
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -68,7 +67,7 @@ class WomenSafetyApp extends StatelessWidget {
         centerTitle: true,
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),

@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +25,7 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private Long expiration;
     
-    private Key getSigningKey() {
+    private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
     
@@ -65,7 +65,7 @@ public class JwtUtil {
             .subject(subject)
             .issuedAt(new Date(System.currentTimeMillis()))
             .expiration(new Date(System.currentTimeMillis() + expiration))
-            .signWith(getSigningKey(), Jwts.SIG.HS256)
+            .signWith(getSigningKey())
             .compact();
     }
     

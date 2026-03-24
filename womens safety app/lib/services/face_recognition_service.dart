@@ -1,8 +1,9 @@
 /// Face Recognition Service
 /// Stub implementation for ML Kit face detection
 /// Can be extended with custom face recognition model
-import 'package:camera/camera.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
+import 'dart:ui';
+
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 class FaceRecognitionService {
   final FaceDetector _faceDetector = GoogleMlKit.vision.faceDetector(

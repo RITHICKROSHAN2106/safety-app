@@ -39,6 +39,7 @@ public class SOSAlert {
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private AlertStatus status = AlertStatus.ACTIVE;
     
     @Column(name = "trigger_type")
