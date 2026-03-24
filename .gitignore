@@ -1,0 +1,21 @@
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.iml
+
+# Build outputs and caches
+**/build/
+**/target/
+**/.dart_tool/
+**/.gradle/
+
+# Flutter/Android generated or machine-specific files
+**/android/local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+
+# Logs
+*.log
