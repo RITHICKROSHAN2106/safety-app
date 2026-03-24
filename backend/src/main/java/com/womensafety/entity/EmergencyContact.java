@@ -2,7 +2,6 @@ package com.womensafety.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -12,7 +11,6 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "emergency_contacts")
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class EmergencyContact {
@@ -38,6 +36,5 @@ public class EmergencyContact {
     private String relationship; // e.g., "Mother", "Friend", "Spouse"
     
     @Column(name = "is_primary")
-    @Builder.Default
     private Boolean isPrimary = false; // Mark one contact as primary
 }

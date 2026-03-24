@@ -7,12 +7,12 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:women_safety_app/main.dart';
+import 'package:women_safety_app/main.dart' as app;
 
 void main() {
   testWidgets('App entrypoint can be invoked', (WidgetTester tester) async {
     // Verifies main() can run without throwing synchronously.
-    main();
+    app.main();
     await tester.pump();
 
     expect(tester.takeException(), isNull);

@@ -15,7 +15,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+        "[format_sql]": true
   
   servlet:
     multipart:
@@ -46,9 +46,9 @@ cors:
 # Logging
 logging:
   level:
-    com.womensafety: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
+    "[com.womensafety]": DEBUG
+    "[org.springframework.security]": DEBUG
+    "[org.hibernate.SQL]": DEBUG
 
 # Springdoc OpenAPI
 springdoc:

@@ -8,15 +8,19 @@ class LiveStreamingService {
   bool _isInitialized = false;
   bool _isStreaming = false;
 
-  // Agora App ID (placeholder - add your own)
-  static const String _appId = 'YOUR_AGORA_APP_ID';
+  static const String _appId = String.fromEnvironment('AGORA_APP_ID');
 
   bool get isStreaming => _isStreaming;
   bool get isInitialized => _isInitialized;
+  bool get isConfigured => _appId.isNotEmpty;
 
   // Initialize Agora engine
   Future<void> initialize() async {
     if (_isInitialized) return;
+
+    if (!isConfigured) {
+      throw Exception('Agora App ID is missing');
+    }
 
     try {
       // Create Agora engine
