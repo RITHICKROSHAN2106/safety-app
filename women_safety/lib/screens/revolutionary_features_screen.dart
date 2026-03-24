@@ -32,6 +32,51 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
     final faceRecognitionEnabled = Config.isFaceRecognitionEnabled;
     final voiceDistressEnabled = Config.isVoiceDistressEnabled;
     final aiDangerEnabled = Config.isAIDangerPredictionEnabled;
+    final liveStreamingDisabledReason = Config.liveStreamingDisabledReason;
+    final guardianNetworkDisabledReason = Config.guardianNetworkDisabledReason;
+    final faceRecognitionDisabledReason = Config.faceRecognitionDisabledReason;
+    final voiceDistressDisabledReason = Config.voiceDistressDisabledReason;
+    final aiDangerDisabledReason = Config.aiDangerDisabledReason;
+
+    final readinessItems = <_FeatureReadiness>[
+      _FeatureReadiness(
+        title: 'Fake Call',
+        isEnabled: true,
+      ),
+      _FeatureReadiness(
+        title: 'Panic Widget',
+        isEnabled: true,
+      ),
+      _FeatureReadiness(
+        title: 'Live Streaming',
+        isEnabled: liveStreamingEnabled,
+        disabledReason: liveStreamingDisabledReason,
+      ),
+      _FeatureReadiness(
+        title: 'Ride Tracking',
+        isEnabled: true,
+      ),
+      _FeatureReadiness(
+        title: 'Guardian Network',
+        isEnabled: guardianNetworkEnabled,
+        disabledReason: guardianNetworkDisabledReason,
+      ),
+      _FeatureReadiness(
+        title: 'Face Recognition',
+        isEnabled: faceRecognitionEnabled,
+        disabledReason: faceRecognitionDisabledReason,
+      ),
+      _FeatureReadiness(
+        title: 'Voice Distress Analysis',
+        isEnabled: voiceDistressEnabled,
+        disabledReason: voiceDistressDisabledReason,
+      ),
+      _FeatureReadiness(
+        title: 'AI Danger Prediction',
+        isEnabled: aiDangerEnabled,
+        disabledReason: aiDangerDisabledReason,
+      ),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -58,6 +103,8 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
                   color: Colors.grey.shade600,
                 ),
           ),
+          const SizedBox(height: 12),
+          _RevolutionaryReadinessBanner(items: readinessItems),
           const SizedBox(height: 24),
 
           // Feature 1: Fake Call
@@ -93,7 +140,7 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
             description: 'Stream live video to guardians during emergency',
             color: Colors.purple,
             isEnabled: liveStreamingEnabled,
-            disabledReason: 'Configure Agora App ID to enable live streaming',
+            disabledReason: liveStreamingDisabledReason,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const LiveStreamingScreen()),
@@ -121,7 +168,7 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
             description: 'Connect with nearby volunteer guardians',
             color: Colors.green,
             isEnabled: guardianNetworkEnabled,
-            disabledReason: 'Volunteer network is disabled in this build',
+            disabledReason: guardianNetworkDisabledReason,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const GuardianNetworkScreen()),
@@ -136,7 +183,7 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
             description: 'Verify trusted contacts with ML-powered face detection',
             color: Colors.teal,
             isEnabled: faceRecognitionEnabled,
-            disabledReason: 'Face recognition requires production ML models',
+            disabledReason: faceRecognitionDisabledReason,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FaceRecognitionScreen()),
@@ -151,7 +198,7 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
             description: 'Auto-detect distress in voice and trigger SOS',
             color: Colors.pink,
             isEnabled: voiceDistressEnabled,
-            disabledReason: 'Voice distress model is not configured',
+            disabledReason: voiceDistressDisabledReason,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const VoiceDistressScreen()),
@@ -166,13 +213,90 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
             description: 'ML-powered danger zone detection and safe routes',
             color: Colors.deepOrange,
             isEnabled: aiDangerEnabled,
-            disabledReason: 'AI danger model is not configured',
+            disabledReason: aiDangerDisabledReason,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AIDangerMapScreen()),
             ),
           ),
           const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureReadiness {
+  final String title;
+  final bool isEnabled;
+  final String? disabledReason;
+
+  const _FeatureReadiness({
+    required this.title,
+    required this.isEnabled,
+    this.disabledReason,
+  });
+}
+
+class _RevolutionaryReadinessBanner extends StatelessWidget {
+  final List<_FeatureReadiness> items;
+
+  const _RevolutionaryReadinessBanner({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    final enabledCount = items.where((item) => item.isEnabled).length;
+    final disabledItems = items.where((item) => !item.isEnabled).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.indigo.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.indigo.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Deployment Readiness: $enabledCount/${items.length} enabled',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.indigo.shade900,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          if (disabledItems.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...disabledItems.take(3).map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '- ${item.title}: ${item.disabledReason ?? 'Enable required configuration'}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.indigo.shade700,
+                          ),
+                    ),
+                  ),
+                ),
+            if (disabledItems.length > 3)
+              Text(
+                '+${disabledItems.length - 3} more feature checks',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.indigo.shade700,
+                      fontStyle: FontStyle.italic,
+                    ),
+              ),
+          ] else ...[
+            const SizedBox(height: 6),
+            Text(
+              'All revolutionary features are configured for this build.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.indigo.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ],
         ],
       ),
     );

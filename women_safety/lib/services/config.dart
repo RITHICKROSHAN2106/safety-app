@@ -122,6 +122,54 @@ class Config {
   static bool get isVoiceDistressEnabled => enableVoiceDistress;
   static bool get isAIDangerPredictionEnabled => enableAIDangerPrediction;
 
+  static String? get liveStreamingDisabledReason {
+    if (!enableLiveStreaming) {
+      return 'Set FEATURE_LIVE_STREAMING=true via --dart-define';
+    }
+    if (agoraAppId.isEmpty) {
+      return 'Configure AGORA_APP_ID via --dart-define';
+    }
+    return null;
+  }
+
+  static String? get guardianNetworkDisabledReason {
+    if (!enableGuardianNetwork) {
+      return 'Set FEATURE_GUARDIAN_NETWORK=true via --dart-define';
+    }
+    return null;
+  }
+
+  static String? get faceRecognitionDisabledReason {
+    if (!enableFaceRecognition) {
+      return 'Set FEATURE_FACE_RECOGNITION=true via --dart-define';
+    }
+    return null;
+  }
+
+  static String? get voiceDistressDisabledReason {
+    if (!enableVoiceDistress) {
+      return 'Set FEATURE_VOICE_DISTRESS=true via --dart-define';
+    }
+    return null;
+  }
+
+  static String? get aiDangerDisabledReason {
+    if (!enableAIDangerPrediction) {
+      return 'Set FEATURE_AI_DANGER=true via --dart-define';
+    }
+    return null;
+  }
+
+  static int get enabledRevolutionaryFeatureCount {
+    var count = 3; // Fake Call, Panic Widget and Ride Tracking are always enabled.
+    if (isLiveStreamingEnabled) count++;
+    if (isGuardianNetworkEnabled) count++;
+    if (isFaceRecognitionEnabled) count++;
+    if (isVoiceDistressEnabled) count++;
+    if (isAIDangerPredictionEnabled) count++;
+    return count;
+  }
+
   // Update auth token after login
   static void setAuthToken(String token) {
     authToken = token;
