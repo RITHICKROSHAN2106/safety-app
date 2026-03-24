@@ -99,6 +99,170 @@ class AIDangerPredictionService {
         },
       ],
     },
+    'madurai': {
+      'riskyAreas': [
+        {
+          'name': 'Periyar Bus Stand Rear Lanes',
+          'latitude': 9.9188,
+          'longitude': 78.1190,
+          'risk': 'HIGH',
+          'reason': 'Low-lit stretches and irregular patrol visibility late night',
+        },
+        {
+          'name': 'Railway Junction Service Road',
+          'latitude': 9.9149,
+          'longitude': 78.1178,
+          'risk': 'MEDIUM',
+          'reason': 'Crowd surges and traffic confusion during late evening windows',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'B1 Vilakkuthoon Police Station',
+          'latitude': 9.9195,
+          'longitude': 78.1183,
+          'type': 'Police Station',
+          'contact': '+91 452 252 0200',
+        },
+        {
+          'name': 'Tallakulam Police Station',
+          'latitude': 9.9387,
+          'longitude': 78.1304,
+          'type': 'Police Station',
+          'contact': '+91 452 253 9722',
+        },
+        {
+          'name': 'Meenakshi Temple Security Booth',
+          'latitude': 9.9195,
+          'longitude': 78.1193,
+          'type': 'Police Booth',
+          'contact': '+91 100',
+        },
+      ],
+    },
+    'trichy': {
+      'riskyAreas': [
+        {
+          'name': 'Central Bus Stand Link Roads',
+          'latitude': 10.7987,
+          'longitude': 78.6825,
+          'risk': 'MEDIUM',
+          'reason': 'Congested transfer zones with low visibility in side lanes',
+        },
+        {
+          'name': 'Chathiram Peripheral Streets',
+          'latitude': 10.8269,
+          'longitude': 78.6962,
+          'risk': 'HIGH',
+          'reason': 'Night-time isolation in internal roads and sparse movement',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'Cantonment Police Station',
+          'latitude': 10.8043,
+          'longitude': 78.6902,
+          'type': 'Police Station',
+          'contact': '+91 431 241 1100',
+        },
+        {
+          'name': 'Fort Police Station',
+          'latitude': 10.8289,
+          'longitude': 78.6942,
+          'type': 'Police Station',
+          'contact': '+91 431 270 2525',
+        },
+        {
+          'name': 'Srirangam Patrol Booth',
+          'latitude': 10.8637,
+          'longitude': 78.6939,
+          'type': 'Police Booth',
+          'contact': '+91 100',
+        },
+      ],
+    },
+    'salem': {
+      'riskyAreas': [
+        {
+          'name': 'New Bus Stand Back Corridor',
+          'latitude': 11.6644,
+          'longitude': 78.1460,
+          'risk': 'MEDIUM',
+          'reason': 'Frequent crowd bottlenecks and poor side-lane illumination',
+        },
+        {
+          'name': 'Old Suramangalam Industrial Stretch',
+          'latitude': 11.6748,
+          'longitude': 78.1198,
+          'risk': 'HIGH',
+          'reason': 'Low footfall and isolated warehouse roads at night',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'Hasthampatti Police Station',
+          'latitude': 11.6732,
+          'longitude': 78.1466,
+          'type': 'Police Station',
+          'contact': '+91 427 244 4242',
+        },
+        {
+          'name': 'Town Police Station Salem',
+          'latitude': 11.6537,
+          'longitude': 78.1598,
+          'type': 'Police Station',
+          'contact': '+91 427 221 0300',
+        },
+        {
+          'name': 'Five Roads Patrol Booth',
+          'latitude': 11.6750,
+          'longitude': 78.1413,
+          'type': 'Police Booth',
+          'contact': '+91 100',
+        },
+      ],
+    },
+    'erode': {
+      'riskyAreas': [
+        {
+          'name': 'Central Bus Stand Rear Access Lanes',
+          'latitude': 11.3414,
+          'longitude': 77.7173,
+          'risk': 'MEDIUM',
+          'reason': 'Dense transport crowd with intermittent surveillance coverage',
+        },
+        {
+          'name': 'Textile Market Side Roads',
+          'latitude': 11.3427,
+          'longitude': 77.7265,
+          'risk': 'HIGH',
+          'reason': 'Late-night shop closures create low-visibility blind spots',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'Erode Town Police Station',
+          'latitude': 11.3410,
+          'longitude': 77.7178,
+          'type': 'Police Station',
+          'contact': '+91 424 225 1122',
+        },
+        {
+          'name': 'Surampatti Police Station',
+          'latitude': 11.3371,
+          'longitude': 77.7334,
+          'type': 'Police Station',
+          'contact': '+91 424 226 6600',
+        },
+        {
+          'name': 'Perundurai Road Safety Booth',
+          'latitude': 11.3188,
+          'longitude': 77.7223,
+          'type': 'Police Booth',
+          'contact': '+91 100',
+        },
+      ],
+    },
   };
 
   static List<String> get supportedCities =>
