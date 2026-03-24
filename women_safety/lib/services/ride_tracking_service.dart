@@ -14,12 +14,17 @@ class RideTrackingService {
   static final List<Position> _routePoints = [];
   static final List<Position> _expectedRoute = [];
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final StreamController<RideTrackingSnapshot> _updatesController =
+      StreamController<RideTrackingSnapshot>.broadcast();
+  static RideTrackingSnapshot? _lastSnapshot;
 
   /// Check if currently tracking a ride
   static bool get isTracking => _isTracking;
   
   /// Get current ride ID
   static String? get currentRideId => _currentRideId;
+  static Stream<RideTrackingSnapshot> get trackingUpdates => _updatesController.stream;
+  static RideTrackingSnapshot? get lastSnapshot => _lastSnapshot;
 
   /// Start tracking a ride
   static Future<String?> startRideTracking({
@@ -86,6 +91,10 @@ class RideTrackingService {
       _startLocationTracking(userId, guardians, destination);
 
       _isTracking = true;
+      _emitSnapshot(
+        status: 'TRACKING_STARTED',
+        statusMessage: 'Ride tracking is active and guardians are informed.',
+      );
       debugPrint('🚗 Ride tracking started: $_currentRideId');
       debugPrint('📍 Guardians can track your location in real-time');
       
@@ -195,6 +204,25 @@ class RideTrackingService {
     ).listen(
       (Position position) async {
         _routePoints.add(position);
+        final totalDistance = _calculateTotalDistance();
+        double? remainingDistance;
+        if (destination != null) {
+          remainingDistance = Geolocator.distanceBetween(
+            position.latitude,
+            position.longitude,
+            destination.latitude,
+            destination.longitude,
+          );
+        }
+
+        _emitSnapshot(
+          status: 'TRACKING_ACTIVE',
+          statusMessage: 'Live tracking active',
+          position: position,
+          totalDistanceMeters: totalDistance,
+          remainingDistanceMeters: remainingDistance,
+          speedKmh: position.speed * 3.6,
+        );
         
         // Update location in Firestore
         await _updateRideLocation(position);
@@ -220,6 +248,10 @@ class RideTrackingService {
       },
       onError: (e) {
         debugPrint('❌ Location tracking error: $e');
+        _emitSnapshot(
+          status: 'TRACKING_ERROR',
+          statusMessage: 'Location stream error: $e',
+        );
       },
     );
   }
@@ -289,6 +321,14 @@ class RideTrackingService {
     double deviationDistance,
   ) async {
     debugPrint('⚠️ Route deviation: ${deviationDistance.toStringAsFixed(0)}m');
+    _emitSnapshot(
+      status: 'ROUTE_DEVIATION',
+      statusMessage: 'Route deviation detected',
+      position: position,
+      routeDeviationMeters: deviationDistance,
+      totalDistanceMeters: _calculateTotalDistance(),
+      speedKmh: position.speed * 3.6,
+    );
     
     // Send emergency alerts
     for (final guardian in guardians) {
@@ -311,6 +351,11 @@ class RideTrackingService {
   /// Notify guardians that destination was reached
   static Future<void> _notifyReachedDestination(List<Guardian> guardians) async {
     debugPrint('✅ Destination reached safely');
+    _emitSnapshot(
+      status: 'DESTINATION_REACHED',
+      statusMessage: 'Destination reached safely',
+      totalDistanceMeters: _calculateTotalDistance(),
+    );
     
     // Send notifications
     for (final guardian in guardians) {
@@ -356,6 +401,13 @@ class RideTrackingService {
       _currentRideId = null;
       _routePoints.clear();
       _expectedRoute.clear();
+
+      _emitSnapshot(
+        status: reachedSafely ? 'TRACKING_COMPLETED' : 'TRACKING_STOPPED',
+        statusMessage: reachedSafely
+        ? 'Ride ended safely'
+        : 'Ride tracking stopped',
+      );
 
       debugPrint('✅ Ride tracking stopped');
     } catch (e) {
@@ -423,9 +475,69 @@ class RideTrackingService {
       // Mark deviation strongly by clearing expected route
       _expectedRoute.clear();
 
+      _emitSnapshot(
+        status: 'RIDE_EMERGENCY',
+        statusMessage: 'Emergency alert sent to guardians',
+        position: position,
+        totalDistanceMeters: _calculateTotalDistance(),
+      );
+
       debugPrint('🚨 Ride emergency alert sent!');
     } catch (e) {
       debugPrint('❌ Ride panic error: $e');
     }
   }
+
+  static void _emitSnapshot({
+    required String status,
+    required String statusMessage,
+    Position? position,
+    double? totalDistanceMeters,
+    double? remainingDistanceMeters,
+    double? routeDeviationMeters,
+    double? speedKmh,
+  }) {
+    final snapshot = RideTrackingSnapshot(
+      rideId: _currentRideId,
+      status: status,
+      statusMessage: statusMessage,
+      timestamp: DateTime.now(),
+      latitude: position?.latitude,
+      longitude: position?.longitude,
+      speedKmh: speedKmh,
+      totalDistanceMeters: totalDistanceMeters,
+      remainingDistanceMeters: remainingDistanceMeters,
+      routeDeviationMeters: routeDeviationMeters,
+    );
+    _lastSnapshot = snapshot;
+    if (!_updatesController.isClosed) {
+      _updatesController.add(snapshot);
+    }
+  }
+}
+
+class RideTrackingSnapshot {
+  final String? rideId;
+  final String status;
+  final String statusMessage;
+  final DateTime timestamp;
+  final double? latitude;
+  final double? longitude;
+  final double? speedKmh;
+  final double? totalDistanceMeters;
+  final double? remainingDistanceMeters;
+  final double? routeDeviationMeters;
+
+  const RideTrackingSnapshot({
+    required this.rideId,
+    required this.status,
+    required this.statusMessage,
+    required this.timestamp,
+    this.latitude,
+    this.longitude,
+    this.speedKmh,
+    this.totalDistanceMeters,
+    this.remainingDistanceMeters,
+    this.routeDeviationMeters,
+  });
 }

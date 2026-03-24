@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -691,15 +693,32 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   final _driverPhoneController = TextEditingController();
   final _vehicleNumberController = TextEditingController();
   final _vehicleModelController = TextEditingController();
+  final _destinationLatController = TextEditingController(text: '11.0168');
+  final _destinationLngController = TextEditingController(text: '76.9558');
   String _rideType = 'ola';
   bool _isTracking = false;
+  StreamSubscription<RideTrackingSnapshot>? _trackingSubscription;
+  RideTrackingSnapshot? _lastSnapshot;
+  List<Guardian> _activeGuardians = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _trackingSubscription = RideTrackingService.trackingUpdates.listen((snapshot) {
+      if (!mounted) return;
+      setState(() => _lastSnapshot = snapshot);
+    });
+  }
 
   @override
   void dispose() {
+    _trackingSubscription?.cancel();
     _driverNameController.dispose();
     _driverPhoneController.dispose();
     _vehicleNumberController.dispose();
     _vehicleModelController.dispose();
+    _destinationLatController.dispose();
+    _destinationLngController.dispose();
     super.dispose();
   }
 
@@ -727,6 +746,24 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
       return;
     }
 
+    Position? destination;
+    final parsedLat = double.tryParse(_destinationLatController.text.trim());
+    final parsedLng = double.tryParse(_destinationLngController.text.trim());
+    if (parsedLat != null && parsedLng != null) {
+      destination = Position(
+        longitude: parsedLng,
+        latitude: parsedLat,
+        timestamp: DateTime.now(),
+        accuracy: 5,
+        altitude: 0,
+        heading: 0,
+        speed: 0,
+        speedAccuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+      );
+    }
+
     await RideTrackingService.startRideTracking(
       userId: user.uid,
       guardians: guardians,
@@ -737,9 +774,13 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
         'vehicleModel': _vehicleModelController.text,
         'rideType': _rideType,
       },
+      destination: destination,
     );
 
-    setState(() => _isTracking = true);
+    setState(() {
+      _isTracking = true;
+      _activeGuardians = guardians;
+    });
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -749,10 +790,28 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
 
   Future<void> _stopTracking() async {
     await RideTrackingService.stopRideTracking(reachedSafely: true);
-    setState(() => _isTracking = false);
+    setState(() {
+      _isTracking = false;
+      _activeGuardians = [];
+    });
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('✅ Ride ended safely')),
+    );
+  }
+
+  Future<void> _triggerRideEmergency() async {
+    if (_activeGuardians.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No active guardians to alert')),
+      );
+      return;
+    }
+
+    await RideTrackingService.triggerRidePanic(_activeGuardians);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('🚨 Emergency alert sent to guardians')),
     );
   }
 
@@ -774,7 +833,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
           if (_isTracking) ...[
             Card(
               color: Colors.orange.shade50,
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Column(
                   children: [
@@ -783,11 +842,34 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                     Text('🟢 TRACKING ACTIVE', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     SizedBox(height: 8),
                     Text('Guardians are receiving your live location'),
+                    if (_lastSnapshot != null) ...[
+                      SizedBox(height: 12),
+                      Text('Status: ${_lastSnapshot!.statusMessage}'),
+                      Text('Speed: ${(_lastSnapshot!.speedKmh ?? 0).toStringAsFixed(1)} km/h'),
+                      Text('Distance: ${((_lastSnapshot!.totalDistanceMeters ?? 0) / 1000).toStringAsFixed(2)} km'),
+                      if (_lastSnapshot!.remainingDistanceMeters != null)
+                        Text('Remaining: ${(_lastSnapshot!.remainingDistanceMeters! / 1000).toStringAsFixed(2)} km'),
+                      if (_lastSnapshot!.routeDeviationMeters != null)
+                        Text(
+                          'Deviation: ${_lastSnapshot!.routeDeviationMeters!.toStringAsFixed(0)} m',
+                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        ),
+                    ],
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _triggerRideEmergency,
+              icon: const Icon(Icons.warning_amber_rounded),
+              label: const Text('Emergency During Ride'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+                padding: const EdgeInsets.all(16),
+              ),
+            ),
+            const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: _stopTracking,
               icon: const Icon(Icons.stop),
@@ -849,6 +931,37 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.car_rental),
               ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _destinationLatController,
+                    decoration: const InputDecoration(
+                      labelText: 'Destination Lat',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _destinationLngController,
+                    decoration: const InputDecoration(
+                      labelText: 'Destination Lng',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tip: Default destination is Coimbatore city center. Update for each ride.',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
@@ -1257,6 +1370,8 @@ class AIDangerMapScreen extends StatefulWidget {
 class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
   bool _isInitialized = false;
   Map<String, dynamic>? _prediction;
+  Map<String, dynamic>? _cityInsights;
+  String _selectedCity = 'Coimbatore';
 
   @override
   void initState() {
@@ -1277,7 +1392,15 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
       time: DateTime.now(),
     );
 
-    setState(() => _prediction = prediction);
+    final cityInsights = await AIDangerPredictionService.getCitySafetyInsights(
+      city: _selectedCity,
+      start: position,
+    );
+
+    setState(() {
+      _prediction = prediction;
+      _cityInsights = cityInsights;
+    });
   }
 
   Color _getDangerColor() {
@@ -1322,6 +1445,22 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                   text: 'ML-powered danger zone detection with safe route recommendations.',
                 ),
                 const SizedBox(height: 24),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCity,
+                  decoration: const InputDecoration(
+                    labelText: 'Safety Dataset City',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: AIDangerPredictionService.supportedCities
+                      .map((city) => DropdownMenuItem(value: city, child: Text(city)))
+                      .toList(),
+                  onChanged: (value) async {
+                    if (value == null) return;
+                    setState(() => _selectedCity = value);
+                    await _predictCurrentLocation();
+                  },
+                ),
+                const SizedBox(height: 16),
                 if (_prediction != null) ...[
                   Card(
                     color: _getDangerColor().withAlpha((255 * 0.1).round()),
@@ -1369,17 +1508,77 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  if (_cityInsights != null) ...[
+                    Text(
+                      '${_cityInsights!['city']} Safer Route Options',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 12),
+                    ...(_cityInsights!['saferOptions'] as List<dynamic>).map(
+                      (option) => Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.route, color: Colors.green),
+                          title: Text('${option['name']} (Score ${option['safetyScore']}/10)'),
+                          subtitle: Text(option['description'] as String),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Riskier Areas Nearby',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 12),
+                    ...(_cityInsights!['riskyAreas'] as List<dynamic>).take(5).map(
+                      (area) => Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.warning_amber, color: Colors.red),
+                          title: Text('${area['name']} (${area['risk']})'),
+                          subtitle: Text(
+                            '${(area['distanceKm'] as double).toStringAsFixed(2)} km away\n${area['reason']}',
+                          ),
+                          isThreeLine: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Nearby Police Stations / Booths',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 12),
+                    ...(_cityInsights!['nearbyPolice'] as List<dynamic>).map(
+                      (station) => Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.local_police, color: Colors.blue),
+                          title: Text('${station['name']} (${station['type']})'),
+                          subtitle: Text(
+                            '${(station['distanceKm'] as double).toStringAsFixed(2)} km away\n${station['contact']}',
+                          ),
+                          isThreeLine: true,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          final position = await Geolocator.getCurrentPosition();
-          final lat = position.latitude;
-          final lon = position.longitude;
-          
-          // Open Google Maps with safe route preferences (avoid highways, tolls, ferries)
-          final mapsUrl = 'https://www.google.com/maps/dir/?api=1&origin=$lat,$lon&travelmode=walking';
+          final routeOptions = _cityInsights?['saferOptions'] as List<dynamic>?;
+          final mapsUrl = routeOptions != null && routeOptions.isNotEmpty
+              ? routeOptions.first['mapsUrl'] as String
+              : 'https://www.google.com/maps/dir/?api=1&travelmode=walking';
           final uri = Uri.parse(mapsUrl);
           
           if (await canLaunchUrl(uri)) {

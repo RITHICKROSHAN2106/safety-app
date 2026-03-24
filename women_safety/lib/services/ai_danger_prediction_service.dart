@@ -10,6 +10,100 @@ class AIDangerPredictionService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final Map<String, double> _dangerCache = {};
 
+  static const Map<String, Map<String, dynamic>> _citySafetyDataset = {
+    'coimbatore': {
+      'riskyAreas': [
+        {
+          'name': 'Ukkadam Bus Stand Back Lanes',
+          'latitude': 10.9906,
+          'longitude': 76.9612,
+          'risk': 'HIGH',
+          'reason': 'Low visibility after 10 PM and sparse patrol frequency',
+        },
+        {
+          'name': 'Town Hall Market Side Streets',
+          'latitude': 10.9981,
+          'longitude': 76.9589,
+          'risk': 'MEDIUM',
+          'reason': 'Crowd pockets and pickpocket activity during late evenings',
+        },
+        {
+          'name': 'Gandhipuram Flyover Underpass',
+          'latitude': 11.0174,
+          'longitude': 76.9678,
+          'risk': 'HIGH',
+          'reason': 'Poor lighting and isolated stretches after night hours',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'B1 Bazaar Police Station',
+          'latitude': 10.9977,
+          'longitude': 76.9567,
+          'type': 'Police Station',
+          'contact': '+91 422 230 0250',
+        },
+        {
+          'name': 'Gandhipuram Police Station',
+          'latitude': 11.0165,
+          'longitude': 76.9689,
+          'type': 'Police Station',
+          'contact': '+91 422 249 3555',
+        },
+        {
+          'name': 'RS Puram Patrol Booth',
+          'latitude': 11.0095,
+          'longitude': 76.9518,
+          'type': 'Police Booth',
+          'contact': '+91 100',
+        },
+      ],
+    },
+    'chennai': {
+      'riskyAreas': [
+        {
+          'name': 'T Nagar Back Market Streets',
+          'latitude': 13.0413,
+          'longitude': 80.2337,
+          'risk': 'MEDIUM',
+          'reason': 'Heavy crowd and traffic bottlenecks during peak hours',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'T Nagar Police Station',
+          'latitude': 13.0418,
+          'longitude': 80.2329,
+          'type': 'Police Station',
+          'contact': '+91 44 2345 2500',
+        },
+      ],
+    },
+    'bengaluru': {
+      'riskyAreas': [
+        {
+          'name': 'Majestic Bus Terminal Peripheral Lanes',
+          'latitude': 12.9770,
+          'longitude': 77.5728,
+          'risk': 'MEDIUM',
+          'reason': 'Late-night congestion and limited visibility sections',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'Upparpet Police Station',
+          'latitude': 12.9759,
+          'longitude': 77.5718,
+          'type': 'Police Station',
+          'contact': '+91 80 2294 2999',
+        },
+      ],
+    },
+  };
+
+  static List<String> get supportedCities =>
+      _citySafetyDataset.keys.map((c) => _toTitleCase(c)).toList();
+
   /// Initialize TensorFlow Lite model
   static Future<bool> initialize() async {
     try {
@@ -258,6 +352,83 @@ class AIDangerPredictionService {
     return safeRoute;
   }
 
+  /// Returns richer safety insights using curated city datasets.
+  static Future<Map<String, dynamic>> getCitySafetyInsights({
+    required String city,
+    required Position start,
+    Position? destination,
+  }) async {
+    final normalizedCity = city.trim().toLowerCase();
+    final data = _citySafetyDataset[normalizedCity] ?? _citySafetyDataset['coimbatore']!;
+
+    final riskyAreas = (data['riskyAreas'] as List)
+        .map((area) {
+          final lat = (area['latitude'] as num).toDouble();
+          final lng = (area['longitude'] as num).toDouble();
+          final distanceKm = _distanceKm(start.latitude, start.longitude, lat, lng);
+          return {
+            ...Map<String, dynamic>.from(area as Map),
+            'distanceKm': distanceKm,
+          };
+        })
+        .toList()
+      ..sort((a, b) => (a['distanceKm'] as double).compareTo(b['distanceKm'] as double));
+
+    final nearbyPolice = (data['policeStations'] as List)
+        .map((station) {
+          final lat = (station['latitude'] as num).toDouble();
+          final lng = (station['longitude'] as num).toDouble();
+          final distanceKm = _distanceKm(start.latitude, start.longitude, lat, lng);
+          return {
+            ...Map<String, dynamic>.from(station as Map),
+            'distanceKm': distanceKm,
+          };
+        })
+        .toList()
+      ..sort((a, b) => (a['distanceKm'] as double).compareTo(b['distanceKm'] as double));
+
+    final end = destination ?? Position(
+      longitude: start.longitude + 0.015,
+      latitude: start.latitude + 0.015,
+      timestamp: DateTime.now(),
+      accuracy: 5,
+      altitude: 0,
+      heading: 0,
+      speed: 0,
+      speedAccuracy: 0,
+      altitudeAccuracy: 0,
+      headingAccuracy: 0,
+    );
+
+    final saferOptions = <Map<String, dynamic>>[
+      {
+        'name': 'Police Corridor Route',
+        'safetyScore': 9,
+        'description': 'Prioritizes roads near police stations/booths.',
+        'avoidAreas': riskyAreas.take(2).map((e) => e['name']).toList(),
+        'policeStops': nearbyPolice.take(2).map((e) => e['name']).toList(),
+        'mapsUrl':
+            'https://www.google.com/maps/dir/?api=1&origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&travelmode=driving',
+      },
+      {
+        'name': 'Well-Lit Main Road Route',
+        'safetyScore': 8,
+        'description': 'Uses arterial roads and avoids isolated shortcuts.',
+        'avoidAreas': riskyAreas.take(3).map((e) => e['name']).toList(),
+        'policeStops': nearbyPolice.take(1).map((e) => e['name']).toList(),
+        'mapsUrl':
+            'https://www.google.com/maps/dir/?api=1&origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&travelmode=walking',
+      },
+    ];
+
+    return {
+      'city': _toTitleCase(normalizedCity),
+      'riskyAreas': riskyAreas,
+      'nearbyPolice': nearbyPolice.take(5).toList(),
+      'saferOptions': saferOptions,
+    };
+  }
+
   /// Report incident to improve model
   static Future<void> reportIncident({
     required Position position,
@@ -295,5 +466,14 @@ class AIDangerPredictionService {
   static void dispose() {
     _interpreter?.close();
     _interpreter = null;
+  }
+
+  static double _distanceKm(double lat1, double lon1, double lat2, double lon2) {
+    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
+  }
+
+  static String _toTitleCase(String input) {
+    if (input.isEmpty) return input;
+    return input[0].toUpperCase() + input.substring(1).toLowerCase();
   }
 }
