@@ -18,6 +18,7 @@ import '../services/face_recognition_service.dart';
 import '../services/distress_voice_analysis_service.dart';
 import '../services/ai_danger_prediction_service.dart';
 import '../services/config.dart';
+import '../services/sos_service.dart';
 
 /// Revolutionary Features Hub - Access all 8 advanced safety features
 class RevolutionaryFeaturesScreen extends StatelessWidget {
@@ -1110,12 +1111,14 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
     final XFile? image = await _picker.pickImage(source: ImageSource.camera);
     if (image == null) return;
 
+    final guardianId = 'guardian_${DateTime.now().millisecondsSinceEpoch}';
+
     await FaceRecognitionService.registerGuardianFace(
-      guardianId: 'guardian_${DateTime.now().millisecondsSinceEpoch}',
+      guardianId: guardianId,
       imagePath: image.path,
     );
 
-    setState(() => _registeredGuardianId = 'guardian_${DateTime.now().millisecondsSinceEpoch}');
+    setState(() => _registeredGuardianId = guardianId);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1214,17 +1217,82 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
   double _distressScore = 0;
   List<String> _detectedKeywords = [];
   String _lastText = '';
+  StreamSubscription<Map<String, dynamic>>? _analysisSubscription;
+
+  @override
+  void dispose() {
+    _analysisSubscription?.cancel();
+    DistressVoiceAnalysisService.stopAnalysis();
+    super.dispose();
+  }
+
+  Future<List<Guardian>> _loadGuardians(String userId) async {
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final guardianIds = (userDoc.data()?['emergencyContactIds'] as List?)
+            ?.map((e) => '$e')
+            .toList() ??
+        [];
+
+    final guardians = <Guardian>[];
+    for (final id in guardianIds) {
+      final doc = await FirebaseFirestore.instance.collection('guardians').doc(id).get();
+      if (doc.exists) {
+        guardians.add(Guardian.fromJson(doc.data()!));
+      }
+    }
+    return guardians;
+  }
+
+  Future<void> _handleAutoSOS(int score, String transcript) async {
+    final user = context.read<AuthCubit>().state.user;
+    if (user == null) return;
+
+    final guardians = await _loadGuardians(user.uid);
+    if (guardians.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ Distress detected but no guardians configured')),
+      );
+      return;
+    }
+
+    await SOSService.triggerSOS(
+      user: user,
+      emergencyContacts: guardians,
+      triggerType: 'VOICE',
+      makeCall: true,
+      playAlarm: true,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('🚨 SOS auto-triggered (voice score: $score)\n"$transcript"'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
 
   Future<void> _startAnalysis() async {
-    await DistressVoiceAnalysisService.initialize();
+    final initialized = await DistressVoiceAnalysisService.initialize();
+    if (!initialized) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Speech recognition is not available on this device')),
+      );
+      return;
+    }
+
+    DistressVoiceAnalysisService.onAutoSOSRequested = _handleAutoSOS;
     final stream = await DistressVoiceAnalysisService.startAnalysis();
 
     setState(() => _isAnalyzing = true);
 
-    stream.listen((data) {
+    _analysisSubscription?.cancel();
+    _analysisSubscription = stream.listen((data) {
       if (mounted) {
         setState(() {
-          _distressScore = data['distressScore'] ?? 0;
+          _distressScore = ((data['distressScore'] ?? 0) as num).toDouble();
           _detectedKeywords = List<String>.from(data['keywords'] ?? []);
           _lastText = data['text'] ?? '';
         });
@@ -1242,6 +1310,8 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
   }
 
   Future<void> _stopAnalysis() async {
+    await _analysisSubscription?.cancel();
+    _analysisSubscription = null;
     await DistressVoiceAnalysisService.stopAnalysis();
     setState(() {
       _isAnalyzing = false;

@@ -65,13 +65,24 @@ class DistressVoiceAnalysisService {
 
   /// Analyze voice pattern for distress signals
   static void _analyzeVoicePattern(SpeechRecognitionResult result) {
-    final words = result.recognizedWords.toLowerCase().split(' ');
+    final transcript = result.recognizedWords.trim();
+    if (transcript.isEmpty) {
+      return;
+    }
+
+    final words = transcript.toLowerCase().split(RegExp(r'\s+'));
     
     // Check for distress keywords
     int keywordMatches = 0;
+    final detectedKeywords = <String>[];
     for (final word in words) {
-      if (_distressKeywords.any((keyword) => word.contains(keyword))) {
-        keywordMatches++;
+      for (final keyword in _distressKeywords) {
+        if (word.contains(keyword)) {
+          keywordMatches++;
+          if (!detectedKeywords.contains(keyword)) {
+            detectedKeywords.add(keyword);
+          }
+        }
       }
     }
 
@@ -91,9 +102,10 @@ class DistressVoiceAnalysisService {
     // Emit distress level
     _distressStream?.add({
       'distressScore': _distressScore,
-      'keywords': keywordMatches,
+      'keywords': detectedKeywords,
+      'keywordCount': keywordMatches,
       'confidence': result.confidence,
-      'text': result.recognizedWords,
+      'text': transcript,
       'isDistressed': _distressScore >= 60,
     });
 
@@ -101,27 +113,30 @@ class DistressVoiceAnalysisService {
     if (_distressScore >= 80) {
       debugPrint('🚨 HIGH DISTRESS DETECTED! Score: $_distressScore');
       if (onHighDistress != null) {
-        onHighDistress!(_distressScore, result.recognizedWords);
+        onHighDistress!(_distressScore, transcript);
       }
-      _triggerAutoSOS();
+      _triggerAutoSOS(transcript);
     } else if (_distressScore >= 60) {
       debugPrint('⚠️ MODERATE DISTRESS DETECTED! Score: $_distressScore');
       if (onModerateDistress != null) {
-        onModerateDistress!(_distressScore, result.recognizedWords);
+        onModerateDistress!(_distressScore, transcript);
       }
     }
   }
 
   /// Auto-trigger SOS when distress detected
-  static void _triggerAutoSOS() {
-    // This should trigger the main SOS service
+  static void _triggerAutoSOS(String transcript) {
     debugPrint('🚨 Auto-triggering SOS due to voice distress!');
-    // TODO: Integrate with main SOS service
+    final callback = onAutoSOSRequested;
+    if (callback != null) {
+      callback(_distressScore, transcript);
+    }
   }
 
   /// External callbacks for integration
   static void Function(int score, String transcript)? onHighDistress;
   static void Function(int score, String transcript)? onModerateDistress;
+  static Future<void> Function(int score, String transcript)? onAutoSOSRequested;
 
   /// Stop voice analysis
   static Future<void> stopAnalysis() async {
@@ -133,6 +148,7 @@ class DistressVoiceAnalysisService {
       await _distressStream?.close();
       _distressStream = null;
       _distressScore = 0;
+      onAutoSOSRequested = null;
 
       debugPrint('✅ Distress voice analysis stopped');
     } catch (e) {

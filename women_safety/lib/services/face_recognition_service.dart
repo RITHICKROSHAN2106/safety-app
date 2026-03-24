@@ -2,6 +2,7 @@ import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:math' as math;
 
 /// 👤 Face Recognition Service - Verify trusted contacts during SOS
 class FaceRecognitionService {
@@ -31,6 +32,8 @@ class FaceRecognitionService {
 
       // Store face data (in production, use proper face embeddings)
       final face = faces.first;
+      final descriptor = _buildFaceDescriptor(face);
+
       await _firestore.collection('guardian_faces').doc(guardianId).set({
         'guardianId': guardianId,
         'boundingBox': {
@@ -39,6 +42,8 @@ class FaceRecognitionService {
           'width': face.boundingBox.width,
           'height': face.boundingBox.height,
         },
+        'descriptor': descriptor,
+        'qualityScore': _estimateQualityScore(face),
         'registeredAt': FieldValue.serverTimestamp(),
         'imagePath': imagePath,
       });
@@ -75,25 +80,28 @@ class FaceRecognitionService {
       String? matchedGuardian;
       for (final doc in guardianFaces.docs) {
         final registered = doc.data();
-        final box = registered['boundingBox'];
-        final faceBox = faces.first.boundingBox;
-        // Simple overlap ratio test (placeholder for embedding similarity)
-        final overlapWidth = _overlap(faceBox.left, faceBox.right, box['left'].toDouble(), box['left'].toDouble() + box['width'].toDouble());
-        final overlapHeight = _overlap(faceBox.top, faceBox.bottom, box['top'].toDouble(), box['top'].toDouble() + box['height'].toDouble());
-        final overlapArea = (overlapWidth * overlapHeight).clamp(0.0, double.infinity);
-        final faceArea = faceBox.width * faceBox.height;
-        final score = (overlapArea / faceArea).clamp(0.0, 1.0);
+        final storedDescriptor = List<double>.from(
+          (registered['descriptor'] as List<dynamic>? ?? const <dynamic>[])
+              .map((e) => (e as num).toDouble()),
+        );
+        final liveDescriptor = _buildFaceDescriptor(faces.first);
+
+        if (storedDescriptor.isEmpty || liveDescriptor.isEmpty) {
+          continue;
+        }
+
+        final score = _cosineSimilarity(storedDescriptor, liveDescriptor);
         if (score > bestScore) {
           bestScore = score;
           matchedGuardian = registered['guardianId'];
         }
       }
 
-      if (matchedGuardian != null && bestScore > 0.3) {
+      if (matchedGuardian != null && bestScore > 0.82) {
         return {
           'verified': true,
           'guardianId': matchedGuardian,
-          'confidence': bestScore,
+          'confidence': (bestScore * 100).round(),
         };
       }
 
@@ -104,10 +112,64 @@ class FaceRecognitionService {
     }
   }
 
-  static double _overlap(double aStart, double aEnd, double bStart, double bEnd) {
-    final start = aStart > bStart ? aStart : bStart;
-    final end = aEnd < bEnd ? aEnd : bEnd;
-    return (end - start).clamp(0.0, double.infinity);
+  static List<double> _buildFaceDescriptor(Face face) {
+    final leftEye = face.landmarks[FaceLandmarkType.leftEye]?.position;
+    final rightEye = face.landmarks[FaceLandmarkType.rightEye]?.position;
+    final noseBase = face.landmarks[FaceLandmarkType.noseBase]?.position;
+    final mouthBottom = face.landmarks[FaceLandmarkType.bottomMouth]?.position;
+
+    final width = face.boundingBox.width == 0 ? 1.0 : face.boundingBox.width;
+    final height = face.boundingBox.height == 0 ? 1.0 : face.boundingBox.height;
+
+    double normDx(dynamic a, dynamic b) {
+      if (a == null || b == null) return 0.0;
+      return ((a.x - b.x).abs() as num).toDouble() / width;
+    }
+
+    double normDy(dynamic a, dynamic b) {
+      if (a == null || b == null) return 0.0;
+      return ((a.y - b.y).abs() as num).toDouble() / height;
+    }
+
+    return <double>[
+      width / height,
+      face.smilingProbability ?? 0.0,
+      face.leftEyeOpenProbability ?? 0.0,
+      face.rightEyeOpenProbability ?? 0.0,
+      (face.headEulerAngleX ?? 0.0) / 45.0,
+      (face.headEulerAngleY ?? 0.0) / 45.0,
+      (face.headEulerAngleZ ?? 0.0) / 45.0,
+      normDx(leftEye, rightEye),
+      normDy(leftEye, rightEye),
+      normDx(noseBase, mouthBottom),
+      normDy(noseBase, mouthBottom),
+    ];
+  }
+
+  static double _estimateQualityScore(Face face) {
+    var score = 0.5;
+    if (face.smilingProbability != null) score += 0.1;
+    if (face.leftEyeOpenProbability != null) score += 0.1;
+    if (face.rightEyeOpenProbability != null) score += 0.1;
+    if (face.landmarks.isNotEmpty) score += 0.2;
+    return score.clamp(0.0, 1.0);
+  }
+
+  static double _cosineSimilarity(List<double> a, List<double> b) {
+    final length = math.min(a.length, b.length);
+    if (length == 0) return 0.0;
+
+    var dot = 0.0;
+    var normA = 0.0;
+    var normB = 0.0;
+    for (var i = 0; i < length; i++) {
+      dot += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+
+    if (normA == 0 || normB == 0) return 0.0;
+    return dot / (math.sqrt(normA) * math.sqrt(normB));
   }
 
   /// Detect faces in current view (for auto-recording)
