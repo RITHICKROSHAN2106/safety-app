@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fba;
+import 'dart:async';
 import '../bloc/sos/sos_cubit.dart';
 import '../bloc/auth/auth_cubit.dart';
+import '../models/app_user.dart';
 import '../models/guardian.dart';
+import '../services/alarm_service.dart';
+import '../services/call_service.dart';
+import '../services/protection_service.dart';
 import '../widgets/custom_loading.dart';
 import '../widgets/empty_state.dart';
 
@@ -18,11 +24,14 @@ class SosScreen extends StatefulWidget {
 class _SosScreenState extends State<SosScreen> {
   List<Guardian> _emergencyContacts = [];
   bool _isLoadingContacts = true;
+  bool _pendingWidgetAutoTriggerAttempted = false;
+  bool _guestEmergencyTriggered = false;
 
   @override
   void initState() {
     super.initState();
     _loadEmergencyContacts();
+    unawaited(_attemptPendingWidgetAutoTrigger());
   }
 
   /// Load emergency contacts from Firestore
@@ -94,9 +103,23 @@ class _SosScreenState extends State<SosScreen> {
     }
   }
 
-  Future<void> _triggerSOS(String triggerType) async {
+  Future<bool> _triggerSOS(String triggerType) async {
     final authState = context.read<AuthCubit>().state;
-    final user = authState.user;
+    var user = authState.user;
+
+    if (user == null) {
+      final firebaseUser = fba.FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        await context.read<AuthCubit>().refreshProfile();
+        user = context.read<AuthCubit>().state.user ??
+            AppUser(
+              uid: firebaseUser.uid,
+              displayName: firebaseUser.displayName,
+              email: firebaseUser.email,
+              phoneNumber: firebaseUser.phoneNumber,
+            );
+      }
+    }
 
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -105,14 +128,14 @@ class _SosScreenState extends State<SosScreen> {
           backgroundColor: Colors.orange,
         ),
       );
-      return;
+      return false;
     }
 
     // 🔄 RELOAD contacts from Firestore BEFORE triggering SOS
     debugPrint('🔄 Reloading emergency contacts from Firestore...');
     await _loadEmergencyContacts();
 
-    if (!mounted) return;
+    if (!mounted) return false;
 
     if (_emergencyContacts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,7 +145,7 @@ class _SosScreenState extends State<SosScreen> {
           duration: Duration(seconds: 3),
         ),
       );
-      return;
+      return false;
     }
 
     debugPrint('🚨 Triggering SOS - Type: $triggerType');
@@ -135,22 +158,175 @@ class _SosScreenState extends State<SosScreen> {
       debugPrint('   ${i + 1}. ${contact.name} - ${contact.phone} ${contact.isPrimary ? "(PRIMARY)" : ""}');
     }
 
-    context.read<SosCubit>().triggerSOS(
+    final sosCubit = context.read<SosCubit>();
+    await sosCubit.triggerSOS(
           user: user,
           emergencyContacts: _emergencyContacts,
           triggerType: triggerType,
           recordVideo: true,
           makeCall: true,
         );
+
+    return sosCubit.state.isTriggered;
+  }
+
+  Future<void> _attemptPendingWidgetAutoTrigger() async {
+    if (_pendingWidgetAutoTriggerAttempted) {
+      return;
+    }
+    _pendingWidgetAutoTriggerAttempted = true;
+
+    final pendingTrigger = await ProtectionService.checkPendingSOS(clearOnRead: false);
+    if (pendingTrigger != 'WIDGET') {
+      return;
+    }
+
+    for (int attempt = 0; attempt < 12; attempt++) {
+      if (!mounted) {
+        return;
+      }
+
+      final authState = context.read<AuthCubit>().state;
+      if (authState.initialized && authState.user != null) {
+        final success = await _triggerSOS('WIDGET');
+        if (success) {
+          await ProtectionService.clearPendingSOS();
+        }
+        return;
+      }
+
+      if (authState.initialized && authState.user == null) {
+        final firebaseUser = fba.FirebaseAuth.instance.currentUser;
+        if (firebaseUser != null) {
+          await context.read<AuthCubit>().refreshProfile();
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+          continue;
+        }
+      }
+
+      if (authState.initialized && authState.user == null) {
+        final success = await _triggerGuestWidgetEmergency();
+        if (success) {
+          await ProtectionService.clearPendingSOS();
+        }
+        return;
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
+  Future<bool> _triggerGuestWidgetEmergency() async {
+    try {
+      await AlarmService.startAlarm(autoStopAfter: const Duration(seconds: 30));
+      final callStarted = await CallService.callEmergencyServices();
+
+      if (!mounted) {
+        return callStarted;
+      }
+
+      setState(() => _guestEmergencyTriggered = true);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            callStarted
+                ? 'Emergency mode activated from widget. Calling emergency services.'
+                : 'Emergency mode activated from widget. Opened emergency dial flow.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('❌ Guest widget emergency fallback failed: $e');
+      return false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthCubit>().state;
     final user = authState.user;
+    final hasFirebaseSession = fba.FirebaseAuth.instance.currentUser != null;
+
+    if (!authState.initialized || (authState.loading && user == null)) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 12),
+              Text('Preparing emergency services...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (user == null && hasFirebaseSession) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(context.read<AuthCubit>().refreshProfile());
+        }
+      });
+
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 12),
+              Text('Restoring your session...'),
+            ],
+          ),
+        ),
+      );
+    }
 
     // Show login prompt if user not authenticated
     if (user == null) {
+      if (_guestEmergencyTriggered) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Emergency SOS'),
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.warning_amber_rounded, size: 72, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Emergency mode active',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Panic widget triggered emergency action. Sign in to enable guardian alerts and full SOS workflow.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    icon: const Icon(Icons.login),
+                    label: const Text('Sign in for full SOS features'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
       return Scaffold(
         appBar: AppBar(
           title: const Text('Emergency SOS'),
@@ -216,7 +392,7 @@ class _SosScreenState extends State<SosScreen> {
           if (state.isTriggered && !state.isLoading) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('🚨 SOS Alert Sent! Emergency contacts notified.'),
+                content: Text('SOS alert sent. Emergency contacts were notified.'),
                 backgroundColor: Colors.green,
                 duration: Duration(seconds: 5),
               ),

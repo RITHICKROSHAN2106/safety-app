@@ -47,12 +47,20 @@ class WhatsAppService {
   }
 
   /// Send WhatsApp message to specific contact
+  /// Supports both custom message (from MultiChannelMessageBuilder) or auto-built from SOSAlert
   static Future<bool> sendWhatsAppMessage({
     required String phoneNumber,
-    required SOSAlert alert,
+    String? message, // ✅ NEW: Custom message from message builder
+    SOSAlert? alert, // ✅ Now optional - use message if provided
     String? contactName,
   }) async {
     try {
+      // Validate inputs
+      if (message == null && alert == null) {
+        debugPrint('❌ Either message or alert must be provided');
+        return false;
+      }
+
       // Remove non-numeric characters
       String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
       
@@ -61,10 +69,40 @@ class WhatsAppService {
         cleanNumber = '+91$cleanNumber';
       }
 
-      // Prepare WhatsApp message with live location link
-      final timestamp = alert.timestamp.toString().split('.')[0]; // Remove microseconds
-      final message = '''
-🚨 *EMERGENCY SOS ALERT* 🚨
+      // Use custom message if provided, otherwise build from alert
+      final finalMessage = message ?? _buildWhatsAppMessageFromAlert(alert!);
+
+      if (finalMessage.isEmpty) {
+        debugPrint('❌ Empty message content');
+        return false;
+      }
+
+      // WhatsApp URL scheme
+      final Uri whatsappUri = Uri.parse(
+        'https://wa.me/$cleanNumber?text=${Uri.encodeComponent(finalMessage)}',
+      );
+
+      if (await canLaunchUrl(whatsappUri)) {
+        await launchUrl(
+          whatsappUri,
+          mode: LaunchMode.externalApplication,
+        );
+        debugPrint('✅ WhatsApp sent to $contactName with location');
+        return true;
+      } else {
+        debugPrint('❌ WhatsApp not installed');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ WhatsApp message error: $e');
+      return false;
+    }
+  }
+
+  /// Internal: Build WhatsApp message from SOSAlert (fallback for backward compatibility)
+  static String _buildWhatsAppMessageFromAlert(SOSAlert alert) {
+    final timestamp = alert.timestamp.toString().split('.')[0];
+    return '''🚨 *EMERGENCY SOS ALERT* 🚨
 
 ⚠️ I NEED IMMEDIATE HELP!
 
@@ -82,27 +120,6 @@ ${alert.getMapUrl()}
 
 Location coordinates: ${alert.latitude}, ${alert.longitude}
 ''';
-
-      // WhatsApp URL scheme
-      final Uri whatsappUri = Uri.parse(
-        'https://wa.me/$cleanNumber?text=${Uri.encodeComponent(message)}',
-      );
-
-      if (await canLaunchUrl(whatsappUri)) {
-        await launchUrl(
-          whatsappUri,
-          mode: LaunchMode.externalApplication,
-        );
-        debugPrint('✅ WhatsApp message sent to $contactName ($phoneNumber)');
-        return true;
-      } else {
-        debugPrint('❌ WhatsApp not installed');
-        return false;
-      }
-    } catch (e) {
-      debugPrint('❌ WhatsApp message error: $e');
-      return false;
-    }
   }
 
   /// Send a simple WhatsApp text without SOSAlert (used for volunteer notifications)

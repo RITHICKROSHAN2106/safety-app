@@ -13,9 +13,14 @@ import 'screens/splash_screen.dart';
 import 'screens/revolutionary_features_screen.dart';
 
 class WomenSafetyApp extends StatelessWidget {
-  const WomenSafetyApp({super.key, this.navigatorKey});
+  const WomenSafetyApp({
+    super.key,
+    this.navigatorKey,
+    this.launchFromWidgetPanic = false,
+  });
 
   final GlobalKey<NavigatorState>? navigatorKey;
+  final bool launchFromWidgetPanic;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +33,8 @@ class WomenSafetyApp extends StatelessWidget {
           themeMode: mode,
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
-          initialRoute: SplashScreen.routeName,
+            initialRoute:
+              launchFromWidgetPanic ? SosScreen.routeName : SplashScreen.routeName,
           routes: {
             SplashScreen.routeName: (_) => const SplashScreen(),
             LoginScreen.routeName: (_) => const LoginScreen(),

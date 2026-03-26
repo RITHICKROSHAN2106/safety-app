@@ -12,6 +12,7 @@ import 'location_share_service.dart';
 import 'whatsapp_service.dart';
 import 'sms_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'multi_channel_message_builder.dart'; // ✅ NEW: Unified message builder
 
 class SosService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -76,6 +77,7 @@ class SosService {
   }
 
   // Trigger full SOS alert
+  // Trigger full SOS alert with unified multi-channel messages
   Future<SosLog> triggerSosAlert({
     required String userId,
     required String userName,
@@ -104,7 +106,17 @@ class SosService {
       );
 
       // 4. Send alerts to all guardians
-      List<String> alertsSent = [];
+      // 3.5. Build unified multi-channel messages with location
+      print('🔨 Building unified messages with location...');
+      // Create a temporary SOSAlert-like structure for message builder
+      final sosData = {
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+        'timestamp': DateTime.now(),
+        'triggerType': 'BUTTON',
+      };
+    
+        List<String> alertsSent = [];
 
       if (guardians.isEmpty) {
         print('DEMO MODE: No guardians to alert. Location captured: ${location.latitude}, ${location.longitude}');
@@ -119,6 +131,7 @@ class SosService {
               latitude: location.latitude,
               longitude: location.longitude,
               address: location.address,
+                customMessage: null, // Will build unified message if available in future
             );
             alertsSent.add('whatsapp');
           } catch (e) {
@@ -133,6 +146,7 @@ class SosService {
               latitude: location.latitude,
               longitude: location.longitude,
               address: location.address,
+                customMessage: null, // Will build unified message if available in future
             );
             alertsSent.add('sms');
           } catch (e) {

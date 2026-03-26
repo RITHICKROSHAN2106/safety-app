@@ -24,6 +24,7 @@ class VoiceActivationService {
     'danger',
     'save me',
   ];
+  static List<String> _activeKeywords = List<String>.from(_keywords);
 
   /// Initialize speech recognition
   static Future<bool> initialize() async {
@@ -96,7 +97,12 @@ class VoiceActivationService {
     _retryCount = 0; // Reset retry count when starting fresh
 
     // Use custom keywords if provided
-    final effectiveKeywords = customKeywords ?? _keywords;
+    final effectiveKeywords = (customKeywords ?? _keywords)
+      .map((keyword) => keyword.trim())
+      .where((keyword) => keyword.isNotEmpty)
+      .toSet()
+      .toList(growable: false);
+    _activeKeywords = effectiveKeywords;
 
     debugPrint('🎤 Started listening for keywords: ${effectiveKeywords.join(", ")}');
 
@@ -116,7 +122,7 @@ class VoiceActivationService {
 
         // Check if any keyword is detected
         for (final keyword in keywords) {
-          if (spokenWords.contains(keyword.toLowerCase())) {
+          if (_containsKeyword(spokenWords, keyword)) {
             debugPrint('🚨 EMERGENCY KEYWORD DETECTED: "$keyword"');
             _triggerKeywordDetected();
             break;
@@ -162,7 +168,7 @@ class VoiceActivationService {
     _restartTimer = Timer(Duration(seconds: cappedDelay), () {
       if (_isListening && _speech.isAvailable) {
         debugPrint('🔄 Restarting voice recognition...');
-        _startSpeechRecognition(_keywords);
+        _startSpeechRecognition(_activeKeywords);
       }
     });
   }
@@ -205,7 +211,7 @@ class VoiceActivationService {
       return;
     }
 
-    _startSpeechRecognition(_keywords);
+    _startSpeechRecognition(_activeKeywords);
     debugPrint('▶️ Resumed voice recognition');
   }
 
@@ -214,7 +220,7 @@ class VoiceActivationService {
     _retryCount = 0;
     _isListening = true;
     debugPrint('🔄 Manual restart: retry count reset');
-    _startSpeechRecognition(_keywords);
+    _startSpeechRecognition(_activeKeywords);
   }
 
   /// Check if currently listening
@@ -247,13 +253,29 @@ class VoiceActivationService {
   /// Test voice activation (for debugging)
   static void testKeywordDetection(String testWord) {
     debugPrint('🧪 Testing keyword detection with: "$testWord"');
-    for (final keyword in _keywords) {
-      if (testWord.toLowerCase().contains(keyword.toLowerCase())) {
+    for (final keyword in _activeKeywords) {
+      if (_containsKeyword(testWord, keyword)) {
         debugPrint('✅ Keyword "$keyword" would be detected!');
         _triggerKeywordDetected();
         return;
       }
     }
     debugPrint('❌ No keyword detected in: "$testWord"');
+  }
+
+  static bool _containsKeyword(String spokenWords, String keyword) {
+    final normalizedWords = spokenWords.toLowerCase().trim();
+    final normalizedKeyword = keyword.toLowerCase().trim();
+
+    if (normalizedKeyword.isEmpty || normalizedWords.isEmpty) {
+      return false;
+    }
+
+    if (normalizedKeyword.contains(' ')) {
+      return normalizedWords.contains(normalizedKeyword);
+    }
+
+    final pattern = RegExp('(^|\\s)${RegExp.escape(normalizedKeyword)}(\\s|\$)');
+    return pattern.hasMatch(normalizedWords);
   }
 }

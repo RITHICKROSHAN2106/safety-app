@@ -33,15 +33,54 @@ class EmailService {
   }
 
   /// Send email with SOS details
+  /// Supports both custom subject/body (from MultiChannelMessageBuilder) or auto-built
   static Future<bool> sendEmail({
     required String recipients,
-    required SOSAlert alert,
+    String? subject, // ✅ NEW: Custom subject from message builder
+    String? body, // ✅ NEW: Custom body from message builder
+    SOSAlert? alert, // Keep for backward compatibility
     String? userName,
   }) async {
     try {
-      final subject = '🚨 EMERGENCY SOS ALERT from ${userName ?? "User"}';
+      // Determine subject and body
+      final finalSubject = subject ?? '🚨 EMERGENCY SOS ALERT from ${userName ?? "User"}';
       
-      final body = '''
+      final finalBody = body ?? _buildEmailBodyFromAlert(alert, userName);
+
+      if (recipients.isEmpty || finalSubject.isEmpty || finalBody.isEmpty) {
+        debugPrint('❌ Missing required email parameters');
+        return false;
+      }
+
+      debugPrint('📧 Sending email to $recipients with location');
+
+      final Uri emailUri = Uri(
+        scheme: 'mailto',
+        path: recipients,
+        query: 'subject=${Uri.encodeComponent(finalSubject)}&body=${Uri.encodeComponent(finalBody)}',
+      );
+
+      if (await canLaunchUrl(emailUri)) {
+        await launchUrl(emailUri);
+        debugPrint('✅ Email sent with location details');
+        return true;
+      } else {
+        debugPrint('❌ Cannot launch email client');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ Email sending error: $e');
+      return false;
+    }
+  }
+
+  /// Internal: Build email body from SOSAlert (fallback for backward compatibility)
+  static String _buildEmailBodyFromAlert(SOSAlert? alert, String? userName) {
+    if (alert == null) {
+      return 'Emergency alert sent from Women Safety App';
+    }
+
+    return '''
 EMERGENCY SOS ALERT
 
 ${userName ?? "A user"} has triggered an emergency SOS alert and needs immediate help.
@@ -76,24 +115,6 @@ For emergency services:
 • Ambulance: 102
 • Women Helpline: 181
 ''';
+}
 
-      final Uri emailUri = Uri(
-        scheme: 'mailto',
-        path: recipients,
-        query: 'subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
-      );
-
-      if (await canLaunchUrl(emailUri)) {
-        await launchUrl(emailUri);
-        debugPrint('✅ Email sent to: $recipients');
-        return true;
-      } else {
-        debugPrint('❌ Cannot launch email client');
-        return false;
-      }
-    } catch (e) {
-      debugPrint('❌ Email sending error: $e');
-      return false;
-    }
-  }
 }

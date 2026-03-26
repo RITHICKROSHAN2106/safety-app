@@ -294,8 +294,8 @@ class SettingsScreen extends StatelessWidget {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.auto_awesome, color: Colors.deepPurple),
-                title: const Text('🚀 Revolutionary Features'),
-                subtitle: const Text('8 AI-powered advanced safety features'),
+                title: const Text('Advanced Safety Features'),
+                subtitle: const Text('Explore additional safety modules'),
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -303,7 +303,7 @@ class SettingsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
-                    'NEW',
+                    'FEATURES',
                     style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),

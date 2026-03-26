@@ -60,8 +60,9 @@ class ProtectionService {
     return true;
   }
 
-  /// Check and handle any pending SOS triggers
-  static Future<String?> checkPendingSOS() async {
+  /// Check pending SOS trigger.
+  /// Set [clearOnRead] to false when caller only wants to inspect.
+  static Future<String?> checkPendingSOS({bool clearOnRead = true}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final triggerType = prefs.getString('pending_sos_trigger');
@@ -72,8 +73,10 @@ class ProtectionService {
 
         // Only handle triggers less than 5 minutes old
         if (age < 300000) {
-          await prefs.remove('pending_sos_trigger');
-          await prefs.remove('pending_sos_timestamp');
+          if (clearOnRead) {
+            await prefs.remove('pending_sos_trigger');
+            await prefs.remove('pending_sos_timestamp');
+          }
           debugPrint('✅ Retrieved pending SOS: $triggerType');
           return triggerType;
         }
@@ -82,5 +85,16 @@ class ProtectionService {
       debugPrint('❌ Failed to check pending SOS: $e');
     }
     return null;
+  }
+
+  /// Clear pending SOS trigger state.
+  static Future<void> clearPendingSOS() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('pending_sos_trigger');
+      await prefs.remove('pending_sos_timestamp');
+    } catch (e) {
+      debugPrint('❌ Failed to clear pending SOS: $e');
+    }
   }
 }

@@ -88,22 +88,40 @@ class WhatsAppService {
     required double latitude,
     required double longitude,
     String? address,
-  }) async {
-    String message = '🆘 SOS ALERT! 🆘\n\n';
-    message += '$userName needs immediate help!\n\n';
-    message += 'Location Details:\n';
-    if (address != null) {
-      message += 'Address: $address\n';
-    }
-    message += 'Coordinates: $latitude, $longitude\n\n';
-    message += 'Google Maps: https://www.google.com/maps?q=$latitude,$longitude\n\n';
-    message += 'Please respond immediately!';
+      String? customMessage, // ✅ NEW: Support custom message from message builder
+    }) async {
+      // Use custom message if provided, otherwise build from parameters
+      final String message = customMessage ?? _buildSosMessage(
+        userName: userName,
+        latitude: latitude,
+        longitude: longitude,
+        address: address,
+      );
 
-    return await sendMessage(
-      phoneNumber: phoneNumber,
-      message: message,
-    );
-  }
+      return await sendMessage(
+        phoneNumber: phoneNumber,
+        message: message,
+      );
+    }
+
+    // Internal: Build SOS message from parameters (fallback)
+    String _buildSosMessage({
+      required String userName,
+      required double latitude,
+      required double longitude,
+      String? address,
+    }) {
+      String message = '🆘 SOS ALERT! 🆘\n\n';
+      message += '$userName needs immediate help!\n\n';
+      message += 'Location Details:\n';
+      if (address != null) {
+        message += 'Address: $address\n';
+      }
+      message += 'Coordinates: $latitude, $longitude\n\n';
+      message += 'Google Maps: https://www.google.com/maps?q=$latitude,$longitude\n\n';
+      message += 'Please respond immediately!';
+      return message;
+    }
 
   // Check if WhatsApp is installed
   Future<bool> isWhatsAppInstalled() async {

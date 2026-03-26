@@ -15,11 +15,22 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   bool _navigated = false;
+  static const Duration _maxWait = Duration(seconds: 8);
 
   void _goTo(String route) {
     if (_navigated || !mounted) return;
     setState(() => _navigated = true);
     Navigator.of(context).pushReplacementNamed(route);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(_maxWait, () {
+      if (!_navigated && mounted) {
+        _goTo(LoginScreen.routeName);
+      }
+    });
   }
 
   @override

@@ -419,7 +419,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('🚨 Panic Widget Setup'),
+        title: const Text('Panic Widget Setup'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

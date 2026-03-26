@@ -1,0 +1,5 @@
+artifacts/
+*.tflite
+*.keras
+*.h5
+*.log

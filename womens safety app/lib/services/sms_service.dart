@@ -58,19 +58,38 @@ class SmsService {
     required double latitude,
     required double longitude,
     String? address,
-  }) async {
-    String message = 'SOS ALERT!\n\n';
-    message += '$userName needs help!\n\n';
-    if (address != null) {
-      message += 'Location: $address\n';
-    }
-    message += 'Maps: https://maps.google.com/?q=$latitude,$longitude';
+      String? address,
+      String? customMessage, // ✅ NEW: Support custom message from message builder
+    }) async {
+      // Use custom message if provided, otherwise build from parameters
+      final String message = customMessage ?? _buildSosMessage(
+        userName: userName,
+        latitude: latitude,
+        longitude: longitude,
+        address: address,
+      );
 
-    return await sendSms(
-      phoneNumber: phoneNumber,
-      message: message,
-    );
-  }
+      return await sendSms(
+        phoneNumber: phoneNumber,
+        message: message,
+      );
+    }
+
+    // Internal: Build SOS message from parameters (fallback)
+    String _buildSosMessage({
+      required String userName,
+      required double latitude,
+      required double longitude,
+      String? address,
+    }) {
+      String message = 'SOS ALERT!\n\n';
+      message += '$userName needs help!\n\n';
+      if (address != null) {
+        message += 'Location: $address\n';
+      }
+      message += 'Maps: https://maps.google.com/?q=$latitude,$longitude';
+      return message;
+    }
 
   // Send location via SMS
   Future<bool> shareLocation({

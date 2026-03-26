@@ -1,0 +1,43 @@
+flowchart TD
+    A[User Opens App] --> B{Authenticated?}
+    B -- No --> C[Login / Signup]
+    C --> D[Grant Permissions<br/>Location, SMS, Microphone, Notifications]
+    B -- Yes --> E[Home Dashboard]
+    D --> E
+
+    E --> F[Real-Time Location Tracking]
+    E --> G[Voice Distress Monitoring]
+    E --> H[AI Danger Prediction]
+    E --> I[SOS Trigger]
+
+    F --> J[Fetch GPS Coordinates]
+    J --> K[Generate Google Maps Link]
+
+    G --> L[Speech-to-Text]
+    L --> M[Keyword / Distress Rule Analysis]
+    M --> N{Distress Detected?}
+    N -- Yes --> I
+    N -- No --> E
+
+    H --> O[Collect Context Features<br/>time, history, location]
+    O --> P[TFLite Model Inference]
+    P --> Q[Risk Score + Suggestions]
+    Q --> E
+
+    I --> R[Build Unified SOS Message]
+    R --> S[Attach Live Location Link]
+    S --> T[Multi-Channel Dispatch]
+
+    T --> U[SMS Service]
+    T --> V[WhatsApp Service]
+    T --> W[Email Service]
+    T --> X[Push Notification]
+
+    U --> Y[Emergency Contacts Receive Alert]
+    V --> Y
+    W --> Y
+    X --> Y
+
+    E --> Z[Incident Logs / Analytics]
+    Z --> AA[Firebase / Firestore]
+    AA --> H

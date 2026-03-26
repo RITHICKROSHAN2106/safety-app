@@ -6,9 +6,11 @@ import '../models/sos_alert.dart';
 
 class SmsService {
   /// Send SOS SMS to all emergency contacts (opens system SMS composer)
+  /// Supports both custom message (from MultiChannelMessageBuilder) or auto-built from SOSAlert
   static Future<bool> sendSOSSms({
     required List<Guardian> contacts,
     required SOSAlert alert,
+    String? customMessage, // ✅ NEW: Custom message from message builder
   }) async {
     try {
       // Check and request SMS permission if needed
@@ -20,8 +22,8 @@ class SmsService {
         }
       }
 
-      // Prepare SMS message
-      final message = _buildSOSMessage(alert);
+      // Prepare SMS message (use custom if provided, otherwise build from alert)
+      final message = customMessage ?? _buildSOSMessage(alert);
 
       // Extract phone numbers
       final List<String> recipients = contacts
@@ -38,11 +40,11 @@ class SmsService {
       // Join multiple recipients with semicolons for batch SMS
       final allRecipients = recipients.join(';');
       
-      debugPrint('📱 Sending SMS to ${recipients.length} contacts in BATCH mode');
+      debugPrint('📱 Sending SMS to ${recipients.length} contacts with location');
       final sent = await _sendToNumber(allRecipients, message);
       
       if (sent) {
-        debugPrint('✅ SMS composer opened for ALL ${recipients.length} contacts (BATCH)');
+        debugPrint('✅ SMS composer opened for ALL ${recipients.length} contacts (BATCH) with location');
         debugPrint('ℹ️  User needs to tap SEND once to message all contacts');
         return true;
       } else {

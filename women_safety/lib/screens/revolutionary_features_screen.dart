@@ -18,6 +18,7 @@ import '../services/face_recognition_service.dart';
 import '../services/distress_voice_analysis_service.dart';
 import '../services/ai_danger_prediction_service.dart';
 import '../services/config.dart';
+import '../services/call_escalation_service.dart';
 import '../services/sos_service.dart';
 
 /// Revolutionary Features Hub - Access all 8 advanced safety features
@@ -80,7 +81,7 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Revolutionary Features'),
+        title: const Text('Advanced Safety Features'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         elevation: 2,
@@ -464,7 +465,7 @@ class _FakeCallScreenState extends State<FakeCallScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🔐 Fake Call'),
+        title: const Text('Fake Call'),
         backgroundColor: Colors.blue,
       ),
       body: ListView(
@@ -538,6 +539,8 @@ class PanicWidgetSetupScreen extends StatefulWidget {
 class _PanicWidgetSetupScreenState extends State<PanicWidgetSetupScreen> {
   bool _isEnabled = false;
   bool _isInitialized = false;
+  int _guardianCount = 0;
+  String _statusText = 'Ready';
 
   @override
   void initState() {
@@ -547,6 +550,17 @@ class _PanicWidgetSetupScreenState extends State<PanicWidgetSetupScreen> {
 
   Future<void> _checkWidgetStatus() async {
     await PanicWidgetService.initialize();
+    _isEnabled = await PanicWidgetService.getWidgetEnabledStatus();
+    final user = context.read<AuthCubit>().state.user;
+    if (user != null) {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final ids = (userDoc.data()?['emergencyContactIds'] as List?)
+              ?.map((e) => '$e')
+              .toList() ??
+          <String>[];
+      _guardianCount = ids.length;
+      _statusText = ids.isEmpty ? 'Configure guardians in profile' : 'Ready';
+    }
     setState(() => _isInitialized = true);
   }
 
@@ -561,7 +575,7 @@ class _PanicWidgetSetupScreenState extends State<PanicWidgetSetupScreen> {
 
     await PanicWidgetService.updateWidget(
       userName: user.displayName ?? 'User',
-      contactCount: 3,
+      contactCount: _guardianCount,
       isEnabled: _isEnabled,
     );
 
@@ -570,7 +584,7 @@ class _PanicWidgetSetupScreenState extends State<PanicWidgetSetupScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_isEnabled ? 'Panic Widget enabled ✅' : 'Panic Widget disabled'),
+        content: Text(_isEnabled ? 'Panic widget enabled' : 'Panic widget disabled'),
       ),
     );
   }
@@ -579,7 +593,7 @@ class _PanicWidgetSetupScreenState extends State<PanicWidgetSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🚨 Panic Widget'),
+        title: const Text('Panic Widget'),
         backgroundColor: Colors.red,
       ),
       body: ListView(
@@ -598,6 +612,14 @@ class _PanicWidgetSetupScreenState extends State<PanicWidgetSetupScreen> {
               subtitle: const Text('Show SOS button on home screen'),
               value: _isEnabled,
               onChanged: (value) => setState(() => _isEnabled = value),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.account_circle_outlined),
+                title: const Text('Profile and Widget Status'),
+                subtitle: Text('Guardians: $_guardianCount • Status: $_statusText'),
+              ),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
@@ -638,6 +660,10 @@ class _PanicWidgetSetupScreenState extends State<PanicWidgetSetupScreen> {
                     const _InstructionStep(
                       number: '4',
                       text: 'Enable the widget above and tap Update',
+                    ),
+                    const _InstructionStep(
+                      number: '5',
+                      text: 'Ensure at least one guardian is configured in Profile',
                     ),
                   ],
                 ),
@@ -705,7 +731,7 @@ class _LiveStreamingScreenState extends State<LiveStreamingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('📹 Live Streaming'),
+        title: const Text('Live Streaming'),
         backgroundColor: Colors.purple,
       ),
       body: ListView(
@@ -727,7 +753,7 @@ class _LiveStreamingScreenState extends State<LiveStreamingScreen> {
                   children: [
                     const Icon(Icons.fiber_manual_record, color: Colors.red, size: 48),
                     const SizedBox(height: 8),
-                    const Text('🔴 LIVE STREAMING', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('Live Streaming Active', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Text('Channel: $_channelId', style: const TextStyle(fontSize: 12)),
                     const SizedBox(height: 16),
@@ -785,7 +811,7 @@ class _LiveStreamingScreenState extends State<LiveStreamingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      '⚠️ Configuration Required',
+                      'Configuration Required',
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                     const SizedBox(height: 12),
@@ -921,7 +947,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     });
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Ride ended safely')),
+      const SnackBar(content: Text('Ride ended safely')),
     );
   }
 
@@ -936,7 +962,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
     await RideTrackingService.triggerRidePanic(_activeGuardians);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('🚨 Emergency alert sent to guardians')),
+      const SnackBar(content: Text('Emergency alert sent to guardians')),
     );
   }
 
@@ -944,7 +970,7 @@ class _RideTrackingScreenState extends State<RideTrackingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🚗 Ride Tracking'),
+        title: const Text('Ride Tracking'),
         backgroundColor: Colors.orange,
       ),
       body: ListView(
@@ -1133,7 +1159,7 @@ class _GuardianNetworkScreenState extends State<GuardianNetworkScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Registered as volunteer guardian')),
+      const SnackBar(content: Text('Registered as volunteer guardian')),
     );
   }
 
@@ -1151,7 +1177,7 @@ class _GuardianNetworkScreenState extends State<GuardianNetworkScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🤝 Guardian Network'),
+        title: const Text('Guardian Network'),
         backgroundColor: Colors.green,
       ),
       body: ListView(
@@ -1246,7 +1272,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Guardian face registered')),
+      const SnackBar(content: Text('Guardian face registered')),
     );
   }
 
@@ -1257,14 +1283,14 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
     if (result['verified']) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Verified: ${result['guardianId']} (${result['confidence']}% confidence)'),
+          content: Text('Verified: ${result['guardianId']} (${result['confidence']}% confidence)'),
           backgroundColor: Colors.green,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('❌ Unknown person detected'),
+          content: Text('Unknown person detected'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1275,7 +1301,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('👤 Face Recognition'),
+        title: const Text('Face Recognition'),
         backgroundColor: Colors.teal,
       ),
       body: ListView(
@@ -1338,6 +1364,7 @@ class VoiceDistressScreen extends StatefulWidget {
 
 class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
   bool _isAnalyzing = false;
+  bool _isHandlingAutoSOS = false;
   double _distressScore = 0;
   List<String> _detectedKeywords = [];
   String _lastText = '';
@@ -1361,40 +1388,85 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
     for (final id in guardianIds) {
       final doc = await FirebaseFirestore.instance.collection('guardians').doc(id).get();
       if (doc.exists) {
-        guardians.add(Guardian.fromJson(doc.data()!));
+        guardians.add(
+          Guardian.fromJson({
+            'id': doc.id,
+            ...doc.data()!,
+          }),
+        );
       }
     }
-    return guardians;
+    return guardians.where((guardian) => guardian.phone.trim().isNotEmpty).toList(growable: false);
   }
 
   Future<void> _handleAutoSOS(int score, String transcript) async {
-    final user = context.read<AuthCubit>().state.user;
-    if (user == null) return;
-
-    final guardians = await _loadGuardians(user.uid);
-    if (guardians.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Distress detected but no guardians configured')),
-      );
+    if (_isHandlingAutoSOS) {
       return;
     }
 
-    await SOSService.triggerSOS(
-      user: user,
-      emergencyContacts: guardians,
-      triggerType: 'VOICE',
-      makeCall: true,
-      playAlarm: true,
-    );
+    _isHandlingAutoSOS = true;
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🚨 SOS auto-triggered (voice score: $score)\n"$transcript"'),
-        backgroundColor: Colors.red,
-      ),
-    );
+    final user = context.read<AuthCubit>().state.user;
+    if (user == null) {
+      _isHandlingAutoSOS = false;
+      return;
+    }
+
+    try {
+      List<Guardian> guardians = <Guardian>[];
+      try {
+        guardians = await _loadGuardians(user.uid);
+      } catch (e) {
+        debugPrint('❌ Failed to load guardians for voice SOS: $e');
+      }
+
+      if (guardians.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Distress detected but no guardians configured')),
+        );
+        return;
+      }
+
+      // Start call escalation immediately (primary guardian first).
+      try {
+        await CallEscalationService.startEscalation(
+          guardians: guardians,
+          callEmergencyServicesOnFailure: true,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Call escalation failed during voice SOS: $e');
+      }
+
+      // Continue with full SOS flow without waiting for a delayed call stage.
+      try {
+        await SOSService.triggerSOS(
+          user: user,
+          emergencyContacts: guardians,
+          triggerType: 'VOICE',
+          makeCall: false,
+          playAlarm: true,
+        );
+      } catch (e) {
+        debugPrint('❌ Voice SOS trigger failed: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not trigger SOS. Check network and guardians setup.')),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Voice distress triggered immediate guardian call\n"$transcript"'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      _isHandlingAutoSOS = false;
+    }
   }
 
   Future<void> _startAnalysis() async {
@@ -1414,21 +1486,30 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
 
     _analysisSubscription?.cancel();
     _analysisSubscription = stream.listen((data) {
+      final score = ((data['distressScore'] ?? 0) as num).toDouble();
+      final transcript = (data['text'] ?? '').toString();
+      final isDistressed = data['isDistressed'] == true;
+      final isHighConfidenceDistress = data['isHighConfidenceDistress'] == true;
+
       if (mounted) {
         setState(() {
-          _distressScore = ((data['distressScore'] ?? 0) as num).toDouble();
+          _distressScore = score;
           _detectedKeywords = List<String>.from(data['keywords'] ?? []);
-          _lastText = data['text'] ?? '';
+          _lastText = transcript;
         });
 
-        if (data['isDistressed'] == true) {
+        if (isDistressed) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('⚠️ HIGH DISTRESS DETECTED!'),
+              content: Text('High distress detected'),
               backgroundColor: Colors.red,
             ),
           );
         }
+      }
+
+      if (isHighConfidenceDistress && !_isHandlingAutoSOS) {
+        unawaited(_handleAutoSOS(score.toInt(), transcript));
       }
     });
   }
@@ -1456,7 +1537,7 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🗣️ Voice Distress Analysis'),
+        title: const Text('Voice Distress Analysis'),
         backgroundColor: Colors.pink,
       ),
       body: ListView(
@@ -1476,7 +1557,7 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
                   children: [
                     Icon(Icons.graphic_eq, color: _getDistressColor(), size: 48),
                     const SizedBox(height: 8),
-                    const Text('🎤 ANALYZING VOICE', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('Analyzing Voice', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     Text(
                       'Distress Score: ${_distressScore.toStringAsFixed(0)}/100',
@@ -1538,7 +1619,7 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      children: ['help', 'stop', 'no', 'scared', 'emergency', 'police', 'danger']
+                      children: DistressVoiceAnalysisService.distressKeywords
                           .map((keyword) => Chip(label: Text(keyword), backgroundColor: Colors.grey.shade200))
                           .toList(),
                     ),
@@ -1563,9 +1644,64 @@ class AIDangerMapScreen extends StatefulWidget {
 
 class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
   bool _isInitialized = false;
+  bool _isLoadingPrediction = false;
   Map<String, dynamic>? _prediction;
   Map<String, dynamic>? _cityInsights;
+  String? _errorMessage;
   String _selectedCity = 'Coimbatore';
+
+  Future<void> _openSafeRoutes() async {
+    final routeOptions = _cityInsights?['saferOptions'] as List<dynamic>?;
+    final mapsUrl = routeOptions != null && routeOptions.isNotEmpty
+        ? routeOptions.first['mapsUrl'] as String
+        : 'https://www.google.com/maps/dir/?api=1&travelmode=walking';
+
+    final webUri = Uri.parse(mapsUrl);
+    bool launched = false;
+
+    try {
+      launched = await launchUrl(
+        webUri,
+        mode: LaunchMode.externalNonBrowserApplication,
+      );
+    } catch (_) {}
+
+    if (!launched) {
+      try {
+        launched = await launchUrl(
+          webUri,
+          mode: LaunchMode.externalApplication,
+        );
+      } catch (_) {}
+    }
+
+    if (!launched) {
+      final destination = webUri.queryParameters['destination'];
+      if (destination != null && destination.isNotEmpty) {
+        final geoUri = Uri.parse('geo:0,0?q=$destination');
+        try {
+          launched = await launchUrl(
+            geoUri,
+            mode: LaunchMode.externalApplication,
+          );
+        } catch (_) {}
+      }
+    }
+
+    if (!mounted) return;
+
+    if (launched) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('🗺️ Opening safe route navigation')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open maps app. Please check default map app settings.'),
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -1574,32 +1710,94 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
   }
 
   Future<void> _initialize() async {
-    await AIDangerPredictionService.initialize();
-    setState(() => _isInitialized = true);
-    await _predictCurrentLocation();
+    try {
+      await AIDangerPredictionService.initialize();
+      if (!mounted) return;
+      setState(() => _isInitialized = true);
+      await _predictCurrentLocation();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isInitialized = true;
+        _errorMessage = 'Failed to initialize AI danger prediction: $e';
+      });
+    }
+  }
+
+  Future<bool> _ensureLocationReady() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        _errorMessage = 'Location services are disabled. Please enable GPS.';
+      });
+      return false;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      setState(() {
+        _errorMessage =
+            'Location permission denied. Allow location to see AI danger prediction.';
+      });
+      return false;
+    }
+
+    return true;
   }
 
   Future<void> _predictCurrentLocation() async {
-    final position = await Geolocator.getCurrentPosition();
-    final prediction = await AIDangerPredictionService.predictDanger(
-      position: position,
-      time: DateTime.now(),
-    );
-
-    final cityInsights = await AIDangerPredictionService.getCitySafetyInsights(
-      city: _selectedCity,
-      start: position,
-    );
-
     setState(() {
-      _prediction = prediction;
-      _cityInsights = cityInsights;
+      _isLoadingPrediction = true;
+      _errorMessage = null;
     });
+
+    try {
+      final ready = await _ensureLocationReady();
+      if (!ready) {
+        setState(() => _isLoadingPrediction = false);
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
+
+      final prediction = await AIDangerPredictionService.predictDanger(
+        position: position,
+        time: DateTime.now(),
+      );
+
+      final cityInsights = await AIDangerPredictionService.getCitySafetyInsights(
+        city: _selectedCity,
+        start: position,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _prediction = prediction;
+        _cityInsights = cityInsights;
+        _isLoadingPrediction = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingPrediction = false;
+        _errorMessage = 'Unable to compute danger prediction: $e';
+      });
+    }
   }
 
   Color _getDangerColor() {
     if (_prediction == null) return Colors.grey;
-    final score = _prediction!['dangerScore'] as double;
+    final score = (_prediction!['dangerScore'] as num?)?.toDouble() ?? 5.0;
     if (score >= 8) return Colors.red.shade900;
     if (score >= 6) return Colors.red;
     if (score >= 4) return Colors.orange;
@@ -1609,7 +1807,7 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
 
   IconData _getDangerIcon() {
     if (_prediction == null) return Icons.help_outline;
-    final level = _prediction!['level'] as String;
+    final level = (_prediction!['level'] as String?) ?? 'MEDIUM';
     if (level == 'CRITICAL' || level == 'HIGH') return Icons.warning;
     if (level == 'MEDIUM') return Icons.error_outline;
     return Icons.check_circle_outline;
@@ -1631,6 +1829,32 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
       ),
       body: !_isInitialized
           ? const Center(child: CircularProgressIndicator())
+          : _isLoadingPrediction
+              ? const Center(child: CircularProgressIndicator())
+              : (_errorMessage != null)
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                            const SizedBox(height: 12),
+                            Text(
+                              _errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed: _predictCurrentLocation,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -1655,7 +1879,43 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
+                Card(
+                  color: Colors.blueGrey.withAlpha((255 * 0.12).round()),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'AI Diagnostics',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 6),
+                        Text('Initialized: $_isInitialized'),
+                        Text('Loading: $_isLoadingPrediction'),
+                        Text('Has Prediction: ${_prediction != null}'),
+                        Text('Has City Insights: ${_cityInsights != null}'),
+                        if (_errorMessage != null)
+                          Text('Error: $_errorMessage', style: const TextStyle(color: Colors.redAccent)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 if (_prediction != null) ...[
+                  Builder(
+                    builder: (_) {
+                      final level = (_prediction!['level'] as String?) ?? 'MEDIUM';
+                      final score = (_prediction!['dangerScore'] as num?)?.toDouble() ?? 5.0;
+                      final recommendations =
+                          ((_prediction!['recommendations'] as List?)
+                                      ?.map((e) => e.toString())
+                                      .toList() ??
+                                  const <String>['Prediction available, but recommendations are missing.'])
+                              .toList();
+
+                      return Column(
+                        children: [
                   Card(
                     color: _getDangerColor().withAlpha((255 * 0.1).round()),
                     child: Padding(
@@ -1665,7 +1925,7 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                           Icon(_getDangerIcon(), color: _getDangerColor(), size: 64),
                           const SizedBox(height: 16),
                           Text(
-                            '${_prediction!['level']}',
+                            level,
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
@@ -1674,12 +1934,12 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Danger Score: ${(_prediction!['dangerScore'] as double).toStringAsFixed(1)}/10',
+                            'Danger Score: ${score.toStringAsFixed(1)}/10',
                             style: const TextStyle(fontSize: 18),
                           ),
                           const SizedBox(height: 16),
                           LinearProgressIndicator(
-                            value: (_prediction!['dangerScore'] as double) / 10,
+                            value: score / 10,
                             backgroundColor: Colors.grey.shade200,
                             color: _getDangerColor(),
                             minHeight: 12,
@@ -1694,7 +1954,7 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 12),
-                  ...(_prediction!['recommendations'] as List<String>).map(
+                  ...recommendations.map(
                     (rec) => Card(
                       child: ListTile(
                         leading: const Icon(Icons.lightbulb_outline, color: Colors.amber),
@@ -1703,6 +1963,10 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+                        ],
+                      );
+                    },
+                  ),
                   if (_cityInsights != null) ...[
                     Text(
                       '${_cityInsights!['city']} Safer Route Options',
@@ -1764,30 +2028,38 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                       ),
                     ),
                   ],
+                ] else ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.analytics_outlined, size: 48, color: Colors.grey),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'No AI prediction available yet.',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Tap refresh to calculate the current danger score.',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: _predictCurrentLocation,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Run Prediction'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final routeOptions = _cityInsights?['saferOptions'] as List<dynamic>?;
-          final mapsUrl = routeOptions != null && routeOptions.isNotEmpty
-              ? routeOptions.first['mapsUrl'] as String
-              : 'https://www.google.com/maps/dir/?api=1&travelmode=walking';
-          final uri = Uri.parse(mapsUrl);
-          
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('🗺️ Opening safe route navigation')),
-            );
-          } else {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('❌ Unable to open maps')),
-            );
-          }
-        },
+        onPressed: _openSafeRoutes,
         icon: const Icon(Icons.navigation),
         label: const Text('Safe Routes'),
         backgroundColor: Colors.deepOrange,

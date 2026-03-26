@@ -8,6 +8,7 @@ import '../models/app_user.dart';
 import 'sms_service.dart';
 import 'backend_sms_service.dart';
 import 'whatsapp_service.dart';
+import 'multi_channel_message_builder.dart'; // ✅ NEW: Unified message builder
 import 'email_service.dart';
 import 'recording_service.dart';
 import 'storage_service.dart';
@@ -136,9 +137,23 @@ class SOSService {
       }
 
       // STEP 4: Send SMS to all contacts - TRY AUTOMATIC FIRST
-      debugPrint('\n📱 STEP 4: Sending SMS alerts...');
+      // STEP 4: Build unified multi-channel SOS messages with consistent location data
+      debugPrint('\n🔨 STEP 4: Building unified multi-channel messages...');
+      final sosMessages = MultiChannelMessageBuilder.buildSOSMessages(
+        alert: alert,
+        userName: user.name,
+        contactName: emergencyContacts.isNotEmpty ? emergencyContacts[0].name : 'Guardian',
+      );
       
-      // Try automatic SMS via backend
+      if (sosMessages.isLocationDataComplete()) {
+        debugPrint('✅ Unified messages created with location:');
+        debugPrint(sosMessages.getLocationInfoLog());
+      } else {
+        debugPrint('⚠️ Location data incomplete in unified messages');
+      }
+
+      // STEP 4.1: Send SMS with unified message
+      debugPrint('\n📱 STEP 4.1: Sending SMS alerts with unified location...');
       bool smsSent = false;
       try {
         final automaticSmsSent = await BackendSmsService.sendAutomaticSOSSms(
@@ -153,18 +168,19 @@ class SOSService {
       }
       
       if (!smsSent) {
-        debugPrint('  ⚠️ Automatic SMS failed, opening device SMS composer...');
+        debugPrint('  ⚠️ Automatic SMS failed, opening device SMS composer with location...');
         smsSent = await SmsService.sendSOSSms(
           contacts: emergencyContacts,
           alert: alert,
+          customMessage: sosMessages.sms, // ✅ Use unified message with location
         );
       }
 
       if (smsSent) {
-        debugPrint('  ✅ SMS flow initiated successfully');
+        debugPrint('  ✅ SMS flow initiated successfully with location');
       }
 
-      // STEP 4.1: Queue for offline retry if needed
+      // STEP 4.2: Queue for offline retry if needed
       if (!smsSent) {
         debugPrint('\n💾 Queueing alert for offline retry...');
         await _queueForOfflineRetry(user, emergencyContacts, alert);
@@ -181,23 +197,24 @@ class SOSService {
         debugPrint('\n⏭️ STEP 5: Skipping call');
       }
 
-      // STEP 6: Send WhatsApp messages (parallel)
-      debugPrint('\n💬 STEP 6: Sending WhatsApp messages...');
-      _sendWhatsAppAsync(emergencyContacts, alert);
+      // STEP 6: Send WhatsApp messages with unified location (parallel, non-blocking)
+      debugPrint('\n💬 STEP 6: Sending WhatsApp messages with location...');
+      _sendWhatsAppAsync(emergencyContacts, sosMessages); // ✅ Pass unified messages
 
-      // STEP 7: Send email alerts (parallel)
-      debugPrint('\n📧 STEP 7: Sending email alerts...');
-      _sendEmailAsync(emergencyContacts, alert, user.name);
+      // STEP 7: Send email alerts with unified location (parallel, non-blocking)
+      debugPrint('\n📧 STEP 7: Sending email alerts with location...');
+      _sendEmailAsync(emergencyContacts, sosMessages, user.name); // ✅ Pass unified messages
 
       // STEP 8: Send to backend API
       debugPrint('\n🌐 STEP 8: Sending alert to backend...');
       final alertWithId = await _sendToBackend(alert);
 
-      // STEP 9: Show local notification
-      debugPrint('\n🔔 STEP 9: Showing notification...');
+      // STEP 9: Show local notification with location data
+      debugPrint('\n🔔 STEP 9: Showing notification with location...');
       await NotificationService.showNotification(
-        title: '🚨 SOS Alert Triggered',
-        body: 'Emergency contacts have been notified. Stay safe!',
+        title: sosMessages.pushTitle, // ✅ Use unified title
+        body: sosMessages.pushBody, // ✅ Use unified body with location
+        payload: jsonEncode(sosMessages.location), // ✅ Include location data in payload
       );
 
       debugPrint('\n✅ ========== SOS PROCESS COMPLETE ==========\n');
@@ -312,40 +329,76 @@ Please contact me immediately!
     }
   }
 
-  /// Send WhatsApp (async, non-blocking)
+  /// Send WhatsApp with unified messages (async, non-blocking)
   static Future<void> _sendWhatsAppAsync(
     List<Guardian> contacts,
-    SOSAlert alert,
+    SOSMessageSet messages, // ✅ UPDATED: Accept unified messages
   ) async {
     try {
-      final success = await WhatsAppService.sendSOSWhatsApp(
-        contacts: contacts,
-        alert: alert,
-      );
-      if (success) {
-        debugPrint('✅ WhatsApp messages sent');
+      if (contacts.isEmpty) {
+        debugPrint('❌ No contacts for WhatsApp');
+        return;
+      }
+
+      debugPrint('📤 Sending WhatsApp to ${contacts.length} contacts with location...');
+      int successCount = 0;
+
+      for (final contact in contacts) {
+        try {
+          final success = await WhatsAppService.sendWhatsAppMessage(
+            phoneNumber: contact.phone,
+            message: messages.whatsapp, // ✅ Use unified message with location
+            contactName: contact.name,
+          );
+          if (success) {
+            successCount++;
+            debugPrint('✅ WhatsApp sent to ${contact.name} with location');
+          }
+        } catch (e) {
+          debugPrint('⚠️ WhatsApp failed for ${contact.name}: $e');
+        }
+
+        // Delay between messages
+        await Future.delayed(const Duration(milliseconds: 800));
+      }
+
+      if (successCount > 0) {
+        debugPrint('✅ WhatsApp messages sent to $successCount contacts with location');
       } else {
-        debugPrint('⚠️ WhatsApp sending partial/failed');
+        debugPrint('⚠️ WhatsApp sending failed for all contacts');
       }
     } catch (e) {
       debugPrint('❌ WhatsApp error: $e');
     }
   }
 
-  /// Send email (async, non-blocking)
+  /// Send email with unified messages (async, non-blocking)
   static Future<void> _sendEmailAsync(
     List<Guardian> contacts,
-    SOSAlert alert,
+    SOSMessageSet messages, // ✅ UPDATED: Accept unified messages
     String userName,
   ) async {
     try {
-      final success = await EmailService.sendSOSEmail(
-        contacts: contacts,
-        alert: alert,
+      final emailRecipients = contacts
+          .map((c) => c.email)
+          .where((email) => email != null && email.isNotEmpty)
+          .join(',');
+
+      if (emailRecipients.isEmpty) {
+        debugPrint('❌ No email addresses available');
+        return;
+      }
+
+      debugPrint('📧 Sending email to ${contacts.length} contacts with location...');
+      final success = await EmailService.sendEmail(
+        recipients: emailRecipients,
+        subject: messages.pushTitle, // ✅ Use unified subject
+        body: messages.email, // ✅ Use unified email body with location
         userName: userName,
       );
+
       if (success) {
-        debugPrint('✅ Email alerts sent');
+        debugPrint('✅ Email alerts sent with location');
       } else {
         debugPrint('❌ Email sending failed');
       }

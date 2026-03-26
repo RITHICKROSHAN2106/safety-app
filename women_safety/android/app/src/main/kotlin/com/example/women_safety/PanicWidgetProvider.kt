@@ -80,11 +80,13 @@ class PanicWidgetProvider : AppWidgetProvider() {
         if (intent?.action == PANIC_ACTION) {
             // Panic button clicked
             context?.let { ctx ->
-                // Store panic trigger in SharedPreferences
-                val prefs = ctx.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+                // Store panic trigger in Flutter shared_preferences store
+                val prefs = ctx.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                 prefs.edit().apply {
-                    putBoolean("panic_triggered", true)
-                    putLong("panic_timestamp", System.currentTimeMillis())
+                    putBoolean("flutter.panic_triggered", true)
+                    putLong("flutter.panic_timestamp", System.currentTimeMillis())
+                    putString("flutter.pending_sos_trigger", "WIDGET")
+                    putLong("flutter.pending_sos_timestamp", System.currentTimeMillis())
                     apply()
                 }
                 

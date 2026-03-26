@@ -1,0 +1,5 @@
+timestamp,latitude,longitude,incident_type,severity
+2026-03-20T21:35:00Z,11.3410,77.7178,harassment,7.2
+2026-03-20T23:10:00Z,11.3424,77.7211,unsafe,5.8
+2026-03-21T19:05:00Z,11.3375,77.7330,suspicious,5.1
+2026-03-21T22:42:00Z,11.3185,77.7220,assault,9.0

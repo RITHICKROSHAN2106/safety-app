@@ -1,0 +1,246 @@
+WOMEN SAFETY APP - COMPLETE TESTING FRAMEWORK (FLUTTER + SPRING BOOT)
+
+VERSION TARGET
+- Flutter 3.x
+- Android real-device testing via USB debugging (ADB)
+- Spring Boot backend tests with H2
+
+===============================================================================
+1) DEVICE SETUP (USB DEBUGGING)
+===============================================================================
+A) Verify ADB + connected device
+- adb version
+- adb devices
+- adb devices -l
+
+Expected output:
+- One device with status: device
+
+B) Run app on physical device
+- flutter devices
+- flutter run -d <device_id>
+
+C) Capture logs
+- adb -s <device_id> logcat
+- adb -s <device_id> logcat | findstr "SOS_APP SOS Location Notification I/flutter"   (Windows)
+- adb -s <device_id> logcat | grep -E "SOS_APP|SOS|Location|Notification|I/flutter"    (Linux/Mac)
+
+D) Automated scripts
+- Windows: scripts/real_device_test.ps1
+- Linux/Mac: scripts/real_device_test.sh
+
+===============================================================================
+2) FLUTTER TESTING LEVELS
+===============================================================================
+A) UNIT TESTS (Core service coverage)
+Folder:
+- test/unit/
+
+Files:
+- test/unit/sos_trigger_test.dart
+- test/unit/location_service_test.dart
+- test/unit/notification_service_test.dart
+- test/unit/voice_distress_test.dart
+
+Covers:
+- SOS trigger logic
+- Contact validation
+- Error handling
+- Location behavior
+- Notification behavior
+
+Run:
+- flutter test test/unit
+
+B) WIDGET TESTS
+Folder:
+- test/widget/
+
+Files:
+- test/widget/sos_screen_test.dart
+- test/widget/login_screen_test.dart
+- test/widget/home_screen_test.dart
+
+Covers:
+- UI rendering
+- Button clicks
+- Form validation/input flow
+
+Run:
+- flutter test test/widget
+
+C) INTEGRATION TESTS (REAL DEVICE)
+Folders:
+- test/integration/
+- integration_test/
+
+Files:
+- test/integration/sos_workflow_test.dart
+- integration_test/sos_e2e_test.dart
+
+Covers:
+- login
+- add guardian
+- trigger SOS
+- flow assertions from UI to backend response expectations
+
+Run on real device:
+- flutter test integration_test -d <device_id>
+
+(Alternative if using flutter drive pattern)
+- flutter drive --driver=test_driver/integration_test.dart --target=integration_test/sos_e2e_test.dart -d <device_id>
+
+===============================================================================
+3) REAL DEVICE TESTING (USB)
+===============================================================================
+A) Manual + automated sequence
+1. adb devices
+2. flutter run -d <device_id>
+3. Trigger SOS from app
+4. Watch logs in parallel:
+   - Location updates
+   - API calls
+   - Notification pipeline
+
+B) Useful adb commands
+- adb -s <device_id> shell wm size
+- adb -s <device_id> shell input tap <x> <y>
+- adb -s <device_id> shell svc wifi disable
+- adb -s <device_id> shell svc data disable
+- adb -s <device_id> shell svc wifi enable
+- adb -s <device_id> shell svc data enable
+
+===============================================================================
+4) END-TO-END SCENARIO (AUTOMATED)
+===============================================================================
+Scenario:
+- User login
+- Add guardian
+- Trigger SOS
+- Verify SMS/API/location/backend alert flow
+
+Primary file:
+- integration_test/sos_e2e_test.dart
+
+Expected outcome:
+- App boots and navigates
+- SOS action path executes without crash
+- Logs show SOS + location + API trail
+
+===============================================================================
+5) BACKEND TESTING (SPRING BOOT + H2)
+===============================================================================
+A) H2 profile setup
+- src/test/resources/application-test.yml
+- pom.xml includes test dependency: com.h2database:h2
+
+B) Controller integration tests
+- src/test/java/com/womensafety/controller/SOSControllerIntegrationTest.java
+- src/test/java/com/womensafety/controller/LocationControllerIntegrationTest.java
+
+Covers:
+- SOS API response validation
+- Location API response validation
+- Data persistence checks in H2
+
+Run:
+- cd backend
+- mvn test
+
+===============================================================================
+6) LOGGING & DEBUGGING
+===============================================================================
+Flutter logs:
+- debugPrint("[SOS_APP] ...")
+
+ADB filters:
+- adb logcat | findstr "SOS_APP"   (Windows)
+- adb logcat | grep SOS_APP         (Linux/Mac)
+
+Also filter:
+- SOS events
+- location updates
+- notification traces
+- API failures/exceptions
+
+===============================================================================
+7) AUTOMATION COMMANDS (MASTER LIST)
+===============================================================================
+Flutter:
+- flutter pub get
+- flutter test
+- flutter test test/unit
+- flutter test test/widget
+- flutter test integration_test -d <device_id>
+- flutter run -d <device_id>
+
+ADB:
+- adb devices
+- adb logcat
+- adb -s <device_id> logcat
+
+Backend:
+- cd backend
+- mvn test
+
+===============================================================================
+8) ERROR HANDLING TESTS
+===============================================================================
+Simulate and verify behavior:
+- No internet: disable wifi/data via adb shell svc
+- No GPS: disable location in device settings and retry flow
+- No permissions: revoke location/mic/SMS permissions from app settings
+- No contacts: remove guardians and trigger SOS
+
+Expected behavior:
+- Graceful fallback (queue/retry/error message)
+- No app crash
+- Useful logs for diagnosis
+
+===============================================================================
+9) TEST FOLDER STRUCTURE
+===============================================================================
+women_safety/
+  test/
+    unit/
+      sos_trigger_test.dart
+      location_service_test.dart
+      notification_service_test.dart
+      voice_distress_test.dart
+    widget/
+      sos_screen_test.dart
+      login_screen_test.dart
+      home_screen_test.dart
+    integration/
+      sos_workflow_test.dart
+  integration_test/
+    sos_e2e_test.dart
+  scripts/
+    real_device_test.ps1
+    real_device_test.sh
+
+backend/
+  src/test/java/com/womensafety/controller/
+    SOSControllerIntegrationTest.java
+    LocationControllerIntegrationTest.java
+  src/test/resources/
+    application-test.yml
+
+===============================================================================
+10) EXPECTED OUTPUT SNAPSHOT
+===============================================================================
+Flutter unit/widget tests:
+- All tests passed
+
+Integration on device:
+- App launches on connected USB device
+- SOS workflow completes without unhandled exception
+
+Backend tests:
+- BUILD SUCCESS
+- H2-backed controller integration tests pass
+
+Device logs:
+- Visible entries for SOS trigger, location updates, notifications, and API calls
+
+END OF DOCUMENT

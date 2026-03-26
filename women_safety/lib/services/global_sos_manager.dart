@@ -2,14 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fba;
 
 import '../bloc/auth/auth_cubit.dart';
 import '../bloc/sos/sos_cubit.dart';
 import '../models/app_user.dart';
 import '../repositories/guardian_repository.dart';
+import 'distress_voice_analysis_service.dart';
 import 'notification_service.dart';
+import 'panic_widget_service.dart';
 import 'shake_detector_service.dart';
-import 'voice_activation_service.dart';
 
 /// Coordinates shake and voice triggers with the SOS cubit.
 class GlobalSOSManager {
@@ -20,30 +22,46 @@ class GlobalSOSManager {
 
   static bool _listenersActive = false;
   static bool _triggerInFlight = false;
+  static StreamSubscription<Map<String, dynamic>>? _panicTriggerSub;
 
   /// Activate shake and voice listeners. Safe to call multiple times.
   static Future<void> setup() async {
-    if (_listenersActive) return;
-
     final context = navigatorKey.currentContext;
     if (context == null) {
       debugPrint('⚠️ GlobalSOSManager.setup called before navigator ready.');
       return;
     }
 
-    _listenersActive = true;
-
-    ShakeDetectorService.startListening(
-      onShakeDetected: () => _handleGlobalTrigger('SHAKE'),
-      threshold: 20.0,
-    );
-
-    final voiceReady = await VoiceActivationService.initialize();
-    if (voiceReady) {
-      VoiceActivationService.startListening(
-        onKeywordDetected: () => _handleGlobalTrigger('VOICE'),
+    if (!ShakeDetectorService.isListening) {
+      await ShakeDetectorService.startListening(
+        onShakeDetected: () => _handleGlobalTrigger('SHAKE'),
+        threshold: 20.0,
       );
     }
+
+    if (!DistressVoiceAnalysisService.isAnalyzing) {
+      final voiceReady = await DistressVoiceAnalysisService.initialize();
+      if (voiceReady) {
+        DistressVoiceAnalysisService.onAutoSOSRequested = (score, transcript) async {
+          debugPrint('🗣️ Global voice distress trigger: score=$score text="$transcript"');
+          await _handleGlobalTrigger('VOICE');
+        };
+        await DistressVoiceAnalysisService.startAnalysis();
+      }
+    }
+
+    _panicTriggerSub ??= PanicWidgetService.panicTriggers.listen((event) async {
+      debugPrint('🚨 Global panic widget trigger received: $event');
+      await _handleGlobalTrigger('WIDGET');
+    });
+
+    final pendingWidgetTrigger = await PanicWidgetService.checkPanicTrigger();
+    if (pendingWidgetTrigger != null) {
+      debugPrint('🚨 Processing pending panic widget trigger: $pendingWidgetTrigger');
+      await _handleGlobalTrigger('WIDGET');
+    }
+
+    _listenersActive = true;
 
     debugPrint('✅ Global SOS listeners active');
   }
@@ -52,9 +70,28 @@ class GlobalSOSManager {
   static void teardown() {
     if (!_listenersActive) return;
     ShakeDetectorService.stopListening();
-    VoiceActivationService.stopListening();
+    DistressVoiceAnalysisService.stopAnalysis();
+    _panicTriggerSub?.cancel();
+    _panicTriggerSub = null;
     _listenersActive = false;
     debugPrint('✅ Global SOS listeners stopped');
+  }
+
+  /// Shake detection should work only while app is in foreground.
+  static Future<void> pauseShakeDetection() async {
+    await ShakeDetectorService.pauseListening();
+  }
+
+  static void resumeShakeDetection() {
+    if (ShakeDetectorService.isListening) {
+      ShakeDetectorService.resumeListening();
+      return;
+    }
+
+    ShakeDetectorService.startListening(
+      onShakeDetected: () => _handleGlobalTrigger('SHAKE'),
+      threshold: 20.0,
+    );
   }
 
   static Future<void> _handleGlobalTrigger(String triggerType) async {
@@ -70,7 +107,7 @@ class GlobalSOSManager {
     }
 
     final authCubit = context.read<AuthCubit>();
-    final user = authCubit.state.user;
+    final user = await _resolveAuthenticatedUser(authCubit);
     if (user == null) {
       debugPrint('❌ Cannot trigger SOS without authenticated user');
       return;
@@ -104,6 +141,31 @@ class GlobalSOSManager {
     } finally {
       _triggerInFlight = false;
     }
+  }
+
+  static Future<AppUser?> _resolveAuthenticatedUser(AuthCubit authCubit) async {
+    final currentUser = authCubit.state.user;
+    if (currentUser != null) {
+      return currentUser;
+    }
+
+    final firebaseUser = fba.FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) {
+      return null;
+    }
+
+    await authCubit.refreshProfile();
+    final refreshedUser = authCubit.state.user;
+    if (refreshedUser != null) {
+      return refreshedUser;
+    }
+
+    return AppUser(
+      uid: firebaseUser.uid,
+      displayName: firebaseUser.displayName,
+      email: firebaseUser.email,
+      phoneNumber: firebaseUser.phoneNumber,
+    );
   }
 
   /// Make sure the user object contains the most up-to-date contact IDs.

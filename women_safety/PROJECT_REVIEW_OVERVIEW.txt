@@ -1,0 +1,121 @@
+WOMEN SAFETY APP - PROJECT REVIEW OVERVIEW
+
+1) PROJECT OVERVIEW
+The Women Safety App is a smart emergency-response mobile application designed to provide fast help during high-risk situations.
+It reduces manual actions by offering one-tap and automatic emergency triggers.
+The app combines SOS communication, live location sharing, AI-assisted risk analysis, and guardian-based support in one platform.
+
+2) PROBLEM WE ARE SOLVING
+In real emergencies, users may not have enough time to unlock the phone, type messages, or place calls.
+Traditional safety workflows are slow and fragmented.
+Our solution focuses on speed, automation, and reliability.
+
+3) WHAT HAS BEEN COMPLETED SO FAR
+A) Core Safety Flows
+- One-tap SOS trigger is implemented.
+- Home-screen panic widget trigger is integrated (Android native support).
+- Multi-channel emergency alerts are implemented (SMS + push notifications).
+- Real-time location sharing via Google Maps links is implemented.
+- Continuous tracking during SOS sessions is available.
+- Emergency communication and escalation flow are implemented.
+
+B) Advanced Safety Features
+- Voice distress analysis is implemented with keyword and phrase detection.
+- AI danger prediction service is integrated using TensorFlow Lite.
+- Route/safe journey monitoring support is implemented.
+- Fake call assistance is included.
+- Evidence support flow is included for photos/audio/video capture during emergency context.
+
+C) Reliability and System Improvements
+- Voice distress triggering logic has been improved for stronger detection.
+- Foreground voice flow reliability has been improved.
+- Startup/auth initialization is optimized for faster load.
+- Stability and error-handling improvements are applied in SOS and voice flows.
+
+D) Testing and Validation Work
+- Comprehensive frontend and backend testing strategy has been created.
+- Unit, widget, integration, backend, and real-device testing artifacts are prepared.
+- Structured logging and performance checks are documented for validation.
+
+4) TECHNOLOGIES USED
+A) Mobile App
+- Flutter (Dart)
+- State management: Bloc/Cubit
+
+B) Cloud and Data
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Cloud Messaging (for push notification flow)
+
+C) Native Android Layer
+- Kotlin for home-screen panic widget and native trigger integration
+
+D) Backend API Layer
+- Spring Boot 3.5.12
+- Java 17
+- PostgreSQL
+- JWT-based authentication
+- Firebase Admin SDK integration
+
+E) Device/Platform Integrations
+- GPS/location services
+- Microphone and speech recognition
+- SMS/call workflows
+- Notification services
+
+5) MODELS / AI USED
+A) Danger Prediction Model (Main ML Model)
+- Framework: TensorFlow / Keras, exported to TensorFlow Lite
+- Runtime file: danger_prediction_model.tflite
+- Model type: Feedforward Neural Network (MLP)
+- Architecture:
+  Input(8) -> Dense(32, ReLU) -> Dense(16, ReLU) -> Dense(1, Sigmoid)
+- Optimizer: Adam (learning rate 0.001)
+- Loss: Mean Squared Error
+- Metric: Mean Absolute Error
+- Output: danger score (scaled to 0-10 in app)
+
+Input features used by model:
+1. Hour of day
+2. Is night
+3. Is weekend
+4. Latitude (normalized)
+5. Longitude (normalized)
+6. Incident history
+7. Population density
+8. Lighting condition
+
+B) Voice Distress Analysis Model/Logic
+- Current implementation is speech-recognition + rule/scoring pipeline.
+- It uses distress keywords, critical phrases, confidence scores, and cooldown logic.
+- It can auto-request SOS when high distress is detected.
+- Note: this is not yet a separate deep neural audio-classification model.
+
+6) HOW THE SYSTEM WORKS (END-TO-END)
+Step 1: User signs in and configures guardian contacts.
+Step 2: User can trigger SOS from app button or panic widget.
+Step 3: App collects emergency context (location and session details).
+Step 4: App sends emergency alerts to guardians (SMS + push) with map links.
+Step 5: Live tracking updates continue during active SOS.
+Step 6: Escalation path can continue based on response conditions.
+Step 7: AI modules support proactive safety:
+        - Danger prediction for locations/routes
+        - Voice distress monitoring for auto-trigger support
+
+7) CURRENT PROJECT STATUS
+- Core product flows are functional and integrated.
+- Major safety features are implemented and demonstration-ready.
+- Testing documentation and execution strategy are prepared.
+- Current focus is tuning AI accuracy, UX polish, and broader field validation.
+
+8) IMPACT OF THE PROJECT
+- Reduces emergency response delay.
+- Improves chances of reaching trusted contacts quickly.
+- Adds intelligent risk-awareness (not just manual panic actions).
+- Provides a scalable base for future women safety ecosystem features.
+
+9) SHORT REVIEW SCRIPT (YOU CAN SPEAK THIS)
+"Our project is an AI-assisted women safety platform built with Flutter, Firebase, and Android native widget integration.
+It provides instant SOS activation through app and home-screen widget, sends emergency alerts to guardians, and shares live location in real time.
+We added intelligent safety features like TensorFlow Lite-based danger prediction and voice distress analysis for proactive detection.
+The system is designed to work fast under stress, reduce manual steps, and improve real-world emergency response outcomes."

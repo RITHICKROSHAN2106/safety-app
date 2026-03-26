@@ -1,0 +1,14 @@
+flowchart TD
+    A[Raw Incident Data\n timestamp, lat, lng, type, severity] --> B[Feature Engineering Script]
+    B --> C[Model-Ready Dataset\n 8 input features + danger_score]
+
+    C --> D[Train MLP Model\n Dense 32 -> Dense 16 -> Output 1]
+    D --> E[Export as TFLite]
+
+    E --> F[Flutter App Loads TFLite]
+    F --> G[Collect Live Inputs\n time + location + context]
+    G --> H[Run Inference]
+    H --> I[Danger Score 0 to 10]
+
+    I --> J[Show Risk Level + Safety Suggestions]
+    H --> K[If model fails -> Rule-Based Fallback]

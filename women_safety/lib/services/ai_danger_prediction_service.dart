@@ -2,13 +2,14 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:math';
+import 'dart:typed_data';
 
 /// 🤖 AI Danger Prediction - Predict danger zones using ML
 class AIDangerPredictionService {
   static Interpreter? _interpreter;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final Map<String, double> _dangerCache = {};
+  static final Map<String, Map<String, dynamic>> _dangerCache = {};
+  static const Duration _cacheTtl = Duration(minutes: 5);
 
   static const Map<String, Map<String, dynamic>> _citySafetyDataset = {
     'coimbatore': {
@@ -274,7 +275,7 @@ class AIDangerPredictionService {
       // Load pre-trained model
       // Note: You need to add danger_prediction_model.tflite to assets
       // Use relative path inside assets section (ensure pubspec lists assets/models/)
-      _interpreter = await Interpreter.fromAsset('models/danger_prediction_model.tflite');
+      _interpreter = await Interpreter.fromAsset('assets/models/danger_prediction_model.tflite');
       
       debugPrint('✅ AI danger prediction initialized');
       return true;
@@ -294,13 +295,19 @@ class AIDangerPredictionService {
       
       // Create cache key
       final cacheKey = '${position.latitude.toStringAsFixed(3)}_${position.longitude.toStringAsFixed(3)}';
-      
+      final now = DateTime.now();
+
       // Check cache (5-minute validity)
-      if (_dangerCache.containsKey(cacheKey)) {
-        return {
-          'dangerScore': _dangerCache[cacheKey],
-          'cached': true,
-        };
+      final cachedEntry = _dangerCache[cacheKey];
+      if (cachedEntry != null) {
+        final cachedAtMs = (cachedEntry['cachedAtEpochMs'] as int?) ?? 0;
+        final cachedAt = DateTime.fromMillisecondsSinceEpoch(cachedAtMs);
+        if (now.difference(cachedAt) <= _cacheTtl) {
+          return {
+            ...cachedEntry,
+            'cached': true,
+          };
+        }
       }
 
       // Gather features for prediction
@@ -315,20 +322,23 @@ class AIDangerPredictionService {
         dangerScore = _ruleBasedPrediction(features);
       }
 
-      // Cache result
-      _dangerCache[cacheKey] = dangerScore;
-
       // Get danger zone details
       final zoneDetails = await _getDangerZoneDetails(position);
 
-      return {
+      final result = {
         'dangerScore': dangerScore,
         'level': _getDangerLevel(dangerScore),
         'factors': features,
         'zoneDetails': zoneDetails,
         'recommendations': _getRecommendations(dangerScore, time),
         'cached': false,
+        'cachedAtEpochMs': now.millisecondsSinceEpoch,
       };
+
+      // Cache full payload (not only score)
+      _dangerCache[cacheKey] = result;
+
+      return result;
     } catch (e) {
       debugPrint('❌ Predict danger error: $e');
       return {
@@ -357,13 +367,47 @@ class AIDangerPredictionService {
     final incidentCount = await _getIncidentCount(position);
     features['incidentHistory'] = incidentCount.toDouble() / 100.0; // Normalize
 
-    // Population density (mock - in production, use real data)
-    features['populationDensity'] = Random().nextDouble();
+    // Population density proxy (real-time from nearby incidents + time profile)
+    final density = await _estimatePopulationDensity(position, time);
+    features['populationDensity'] = density;
 
-    // Lighting conditions
-    features['lighting'] = features['isNight']! * 0.3;
+    // Lighting conditions (deterministic heuristic)
+    features['lighting'] = _estimateLightingCondition(time);
 
     return features;
+  }
+
+  /// Estimate population density proxy from real-time incident concentration + hour profile
+  static Future<double> _estimatePopulationDensity(Position position, DateTime time) async {
+    try {
+      final nearbyCount = await _getIncidentCountWithinRadius(position, radiusDeg: 0.02);
+      final incidentDensity = (nearbyCount / 50.0).clamp(0.0, 1.0);
+
+      final hour = time.hour;
+      final hourFactor = _hourCrowdFactor(hour);
+
+      final blended = (incidentDensity * 0.65) + (hourFactor * 0.35);
+      return blended.clamp(0.0, 1.0);
+    } catch (_) {
+      return _hourCrowdFactor(time.hour).clamp(0.0, 1.0);
+    }
+  }
+
+  /// Time-of-day crowd profile proxy
+  static double _hourCrowdFactor(int hour) {
+    if (hour >= 8 && hour <= 11) return 0.80; // morning commute
+    if (hour >= 12 && hour <= 16) return 0.70; // daytime
+    if (hour >= 17 && hour <= 21) return 0.95; // evening peak
+    if (hour >= 22 || hour <= 4) return 0.25; // night low crowd
+    return 0.45; // early morning shoulder
+  }
+
+  /// Estimate lighting condition as [0,1] where 1 = well-lit
+  static double _estimateLightingCondition(DateTime time) {
+    final hour = time.hour;
+    if (hour >= 7 && hour <= 17) return 1.0;
+    if ((hour >= 18 && hour <= 19) || (hour >= 5 && hour <= 6)) return 0.6;
+    return 0.3;
   }
 
   /// Run ML prediction
@@ -429,6 +473,25 @@ class AIDangerPredictionService {
           .get();
       return incidents.docs.length;
     } catch (e) {
+      return 0;
+    }
+  }
+
+  /// Get incident density in a larger radius for population proxy
+  static Future<int> _getIncidentCountWithinRadius(
+    Position position, {
+    required double radiusDeg,
+  }) async {
+    try {
+      final incidents = await _firestore
+          .collection('incidents')
+          .where('lat', isGreaterThan: position.latitude - radiusDeg)
+          .where('lat', isLessThan: position.latitude + radiusDeg)
+          .where('lng', isGreaterThan: position.longitude - radiusDeg)
+          .where('lng', isLessThan: position.longitude + radiusDeg)
+          .get();
+      return incidents.docs.length;
+    } catch (_) {
       return 0;
     }
   }

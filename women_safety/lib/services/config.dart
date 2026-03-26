@@ -100,19 +100,19 @@ class Config {
   );
   static const bool enableGuardianNetwork = bool.fromEnvironment(
     'FEATURE_GUARDIAN_NETWORK',
-    defaultValue: false,
+    defaultValue: true,
   );
   static const bool enableFaceRecognition = bool.fromEnvironment(
     'FEATURE_FACE_RECOGNITION',
-    defaultValue: false,
+    defaultValue: true,
   );
   static const bool enableVoiceDistress = bool.fromEnvironment(
     'FEATURE_VOICE_DISTRESS',
-    defaultValue: false,
+    defaultValue: true,
   );
   static const bool enableAIDangerPrediction = bool.fromEnvironment(
     'FEATURE_AI_DANGER',
-    defaultValue: false,
+    defaultValue: true,
   );
 
   static bool get isLiveStreamingEnabled =>

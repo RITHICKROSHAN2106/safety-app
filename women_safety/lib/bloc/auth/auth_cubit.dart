@@ -47,6 +47,8 @@ class AuthCubit extends Cubit<AuthState> {
       : _auth = auth ?? fba.FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance,
         super(const AuthState(loading: true)) {
+    unawaited(_handleAuthUser(_auth.currentUser));
+
     _authSub = _auth.authStateChanges().listen(_handleAuthUser,
         onError: (Object error, StackTrace stackTrace) {
       emit(AuthState(
@@ -128,46 +130,50 @@ class AuthCubit extends Cubit<AuthState> {
       return;
     }
 
-    emit(state.copyWith(loading: true, clearError: true));
+    final basicUser = AppUser(
+      uid: firebaseUser.uid,
+      displayName: firebaseUser.displayName,
+      email: firebaseUser.email,
+      phoneNumber: firebaseUser.phoneNumber,
+    );
+
+    // Emit immediately so splash can navigate without waiting on Firestore.
+    emit(AuthState(
+      user: basicUser,
+      loading: false,
+      initialized: true,
+    ));
 
     try {
-      final profileDoc =
-          await _firestore.collection('users').doc(firebaseUser.uid).get();
-
-      AppUser user = AppUser(
-        uid: firebaseUser.uid,
-        displayName: firebaseUser.displayName,
-        email: firebaseUser.email,
-        phoneNumber: firebaseUser.phoneNumber,
-      );
+      final profileDoc = await _firestore
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .get()
+          .timeout(const Duration(seconds: 2));
 
       if (profileDoc.exists) {
         final data = profileDoc.data() ?? {};
-        user = user.copyWith(
-          displayName: (data['displayName'] ?? user.displayName) as String?,
-          phoneNumber: (data['phoneNumber'] ?? user.phoneNumber) as String?,
+        final enrichedUser = basicUser.copyWith(
+          displayName: (data['displayName'] ?? basicUser.displayName) as String?,
+          phoneNumber: (data['phoneNumber'] ?? basicUser.phoneNumber) as String?,
           emergencyContactIds: data['emergencyContactIds'] != null
               ? List<String>.from(data['emergencyContactIds'] as List)
-              : user.emergencyContactIds,
+              : basicUser.emergencyContactIds,
         );
+
+        emit(state.copyWith(user: enrichedUser, initialized: true, loading: false));
       } else {
         await _firestore
             .collection('users')
             .doc(firebaseUser.uid)
-            .set(user.toJson(), SetOptions(merge: true));
+            .set(basicUser.toJson(), SetOptions(merge: true));
       }
-
-      emit(AuthState(
-        user: user,
-        loading: false,
-        initialized: true,
-      ));
     } catch (e) {
-      emit(AuthState(
-        user: null,
+      emit(state.copyWith(
+        user: basicUser,
         loading: false,
         initialized: true,
-        error: 'Failed to load profile: $e',
+        error: 'Profile sync delayed: $e',
       ));
     }
   }
