@@ -20,6 +20,7 @@ import '../services/ai_danger_prediction_service.dart';
 import '../services/config.dart';
 import '../services/call_escalation_service.dart';
 import '../services/sos_service.dart';
+import 'gemini_assistant_screen.dart';
 
 /// Revolutionary Features Hub - Access all 8 advanced safety features
 class RevolutionaryFeaturesScreen extends StatelessWidget {
@@ -38,6 +39,8 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
     final faceRecognitionDisabledReason = Config.faceRecognitionDisabledReason;
     final voiceDistressDisabledReason = Config.voiceDistressDisabledReason;
     final aiDangerDisabledReason = Config.aiDangerDisabledReason;
+    final geminiAssistantEnabled = Config.isGeminiAssistantEnabled;
+    final geminiAssistantDisabledReason = Config.geminiAssistantDisabledReason;
 
     final readinessItems = <_FeatureReadiness>[
       _FeatureReadiness(
@@ -77,6 +80,11 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
         isEnabled: aiDangerEnabled,
         disabledReason: aiDangerDisabledReason,
       ),
+      _FeatureReadiness(
+        title: 'Gemini Safety Assistant',
+        isEnabled: geminiAssistantEnabled,
+        disabledReason: geminiAssistantDisabledReason,
+      ),
     ];
 
     return Scaffold(
@@ -99,7 +107,7 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '8 AI-powered features to keep you safer',
+            '9 AI-powered features to keep you safer',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.grey.shade600,
                 ),
@@ -221,6 +229,21 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+
+          // Feature 9: Gemini Safety Assistant
+          _ClassicFeatureCard(
+            icon: Icons.auto_awesome,
+            title: 'Gemini Safety Assistant',
+            description: 'Chat with Gemini for safety guidance, SOS triage, and planning',
+            color: Colors.indigo,
+            isEnabled: geminiAssistantEnabled,
+            disabledReason: geminiAssistantDisabledReason,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const GeminiAssistantScreen()),
+            ),
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );

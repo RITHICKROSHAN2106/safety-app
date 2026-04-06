@@ -13,9 +13,18 @@ class LocationState {
 }
 
 class LocationCubit extends Cubit<LocationState> {
-  LocationCubit() : super(const LocationState());
+  final bool _autoInit;
+
+  LocationCubit({bool autoInit = true})
+      : _autoInit = autoInit,
+        super(const LocationState());
 
   Future<void> init() async {
+    if (!_autoInit) {
+      emit(const LocationState());
+      return;
+    }
+
     final enabled = await Geolocator.isLocationServiceEnabled();
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {

@@ -22,6 +22,9 @@ class PanicWidgetService {
     }
 
     try {
+      await _widgetClickSubscription?.cancel();
+      _widgetClickSubscription = null;
+
       // Register widget update callback
       HomeWidget.setAppGroupId('com.example.women_safety');
       
@@ -176,6 +179,12 @@ class PanicWidgetService {
     } catch (e) {
       debugPrint('❌ Launch app error: $e');
     }
+  }
+
+  static Future<void> dispose() async {
+    await _widgetClickSubscription?.cancel();
+    _widgetClickSubscription = null;
+    _isInitialized = false;
   }
 
   static bool _isPanicUri(Uri? uri) {

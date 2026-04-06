@@ -12,13 +12,6 @@ void main() {
   TestLogger.init();
 
   group('Location Service Tests', () {
-    late MockLocationService mockLocationService;
-
-    setUp(() {
-      TestLogger.logInfo('Setting up location service tests', 'SETUP');
-      mockLocationService = MockLocationService();
-    });
-
     test('Location Service Should Get Current Position', () async {
       TestLogger.logLocation('Testing GPS position fetch');
 
@@ -39,6 +32,7 @@ void main() {
           longitude: testLng,
           timestamp: DateTime.now(),
           heading: 0,
+          headingAccuracy: 0,
           speed: 0,
           speedAccuracy: 0,
           accuracy: 5.0,

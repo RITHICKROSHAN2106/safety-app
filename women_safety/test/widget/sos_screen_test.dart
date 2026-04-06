@@ -3,40 +3,21 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:bloc_test/bloc_test.dart';
-import 'package:women_safety/models/app_user.dart';
 import 'package:women_safety/models/guardian.dart';
 import 'package:women_safety/utils/test_logger.dart';
-
-// Mock Cubits
-class MockAuthCubit extends Mock {}
-class MockSOSCubit extends Mock {}
-class MockLocationCubit extends Mock {}
 
 void main() {
   TestLogger.init();
 
   group('SOS Screen Widget Tests', () {
-    late MockSOSCubit mockSOSCubit;
-    late MockAuthCubit mockAuthCubit;
-    late MockLocationCubit mockLocationCubit;
-
-    setUp(() {
-      TestLogger.logInfo('Setting up SOS screen widget tests', 'SETUP');
-      mockSOSCubit = MockSOSCubit();
-      mockAuthCubit = MockAuthCubit();
-      mockLocationCubit = MockLocationCubit();
-    });
-
     testWidgets('SOS Screen Should Render Title', (WidgetTester tester) async {
       TestLogger.logInfo('Testing SOS screen title rendering', 'WIDGET_TEST');
 
       // Act
       await tester.pumpWidget(
-        const MaterialApp(
+        MaterialApp(
           home: Scaffold(
-            appBar: AppBar(title: Text('Emergency SOS')),
+            appBar: AppBar(title: const Text('Emergency SOS')),
             body: Center(child: Text('SOS Screen')),
           ),
         ),
@@ -95,8 +76,6 @@ void main() {
           email: 'john@example.com',
           relationship: 'family',
           isPrimary: true,
-          isFaceVerified: false,
-          rating: 0,
         ),
         Guardian(
           id: 'g2',
@@ -105,8 +84,6 @@ void main() {
           email: 'jane@example.com',
           relationship: 'friend',
           isPrimary: false,
-          isFaceVerified: false,
-          rating: 0,
         ),
       ];
 
@@ -216,7 +193,7 @@ void main() {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('SOS will be sent in:', style: Theme.of(tester.element(find.byType(Scaffold))).textTheme.headlineSmall),
+                  const Text('SOS will be sent in:'),
                   Text('$countdown seconds', style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold)),
                 ],
               ),

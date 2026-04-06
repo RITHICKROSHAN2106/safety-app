@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/global_sos_manager.dart';
+import '../utils/test_environment.dart';
 import 'map_screen.dart';
 import 'sos_screen.dart';
 import 'profile_screen.dart';
@@ -26,9 +27,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      GlobalSOSManager.setup();
-    });
+    if (!isTestEnvironment) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        GlobalSOSManager.setup();
+      });
+    }
   }
 
   @override

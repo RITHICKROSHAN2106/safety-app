@@ -11,6 +11,7 @@ import '../bloc/auth/auth_cubit.dart';
 import '../services/config.dart';
 import '../services/location_share_service.dart';
 import '../models/guardian.dart';
+import '../utils/test_environment.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -136,6 +137,12 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (isTestEnvironment) {
+      return const Center(
+        child: Text('Map preview unavailable in tests'),
+      );
+    }
+
     if (_error != null) {
       return _MapPlaceholder(
         message: _error!,

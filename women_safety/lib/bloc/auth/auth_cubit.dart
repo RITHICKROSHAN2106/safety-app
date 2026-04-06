@@ -39,15 +39,20 @@ class AuthState {
 }
 
 class AuthCubit extends Cubit<AuthState> {
-  final fba.FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
+  final fba.FirebaseAuth? _auth;
+  final FirebaseFirestore? _firestore;
   StreamSubscription<fba.User?>? _authSub;
 
-  AuthCubit({fba.FirebaseAuth? auth, FirebaseFirestore? firestore})
-      : _auth = auth ?? fba.FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
+  AuthCubit({fba.FirebaseAuth? auth, FirebaseFirestore? firestore, bool testMode = false})
+      : _auth = testMode ? null : (auth ?? fba.FirebaseAuth.instance),
+        _firestore = testMode ? null : (firestore ?? FirebaseFirestore.instance),
         super(const AuthState(loading: true)) {
-    unawaited(_handleAuthUser(_auth.currentUser));
+    if (testMode) {
+      emit(const AuthState(initialized: true));
+      return;
+    }
+
+    unawaited(_handleAuthUser(_auth!.currentUser));
 
     _authSub = _auth.authStateChanges().listen(_handleAuthUser,
         onError: (Object error, StackTrace stackTrace) {
@@ -60,6 +65,11 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> signInWithEmail(String email, String password) async {
+    if (_auth == null) {
+      emit(state.copyWith(loading: false, error: 'Authentication is disabled in test mode.'));
+      return;
+    }
+
     emit(state.copyWith(loading: true, clearError: true));
     try {
       await _auth.signInWithEmailAndPassword(
@@ -84,6 +94,11 @@ class AuthCubit extends Cubit<AuthState> {
     required String password,
     String? displayName,
   }) async {
+    if (_auth == null || _firestore == null) {
+      emit(state.copyWith(loading: false, error: 'Authentication is disabled in test mode.'));
+      return;
+    }
+
     emit(state.copyWith(loading: true, clearError: true));
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -116,11 +131,20 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> signOut() async {
+    if (_auth == null) {
+      emit(const AuthState(initialized: true));
+      return;
+    }
+
     emit(state.copyWith(loading: true, clearError: true));
     await _auth.signOut();
   }
 
   Future<void> refreshProfile() async {
+    if (_auth == null) {
+      return;
+    }
+
     await _handleAuthUser(_auth.currentUser);
   }
 
@@ -145,6 +169,10 @@ class AuthCubit extends Cubit<AuthState> {
     ));
 
     try {
+      if (_firestore == null) {
+        return;
+      }
+
       final profileDoc = await _firestore
           .collection('users')
           .doc(firebaseUser.uid)
