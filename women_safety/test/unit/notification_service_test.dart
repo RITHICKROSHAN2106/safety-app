@@ -13,13 +13,6 @@ void main() {
   TestLogger.init();
 
   group('Notification Service Tests', () {
-    late MockFirebaseMessaging mockFCM;
-
-    setUp(() {
-      TestLogger.logInfo('Setting up notification service tests', 'SETUP');
-      mockFCM = MockFirebaseMessaging();
-    });
-
     test('Push Notification Should Be Sent to Guardian', () async {
       TestLogger.logNotification('Testing push notification to guardian');
 
@@ -126,7 +119,7 @@ void main() {
       for (final guardian in guardians) {
         try {
           TestLogger.logNotification('Sending to ${guardian['name']}', 
-            to: guardian['name'] as String?, 
+            to: guardian['name']?.toString(), 
             data: {'phone': guardian['phone']});
           await Future.delayed(Duration(milliseconds: 200));
           successCount++;
@@ -231,7 +224,8 @@ void main() {
           TestLogger.logSuccess('Notification delivered after $attemptCount attempts');
         } catch (e) {
           TestLogger.logWarning('Attempt $attemptCount failed: ${e.toString()}');
-          if (attemptCount < maxRetries) {\n            await Future.delayed(Duration(milliseconds: 100 * attemptCount));
+          if (attemptCount < maxRetries) {
+            await Future.delayed(Duration(milliseconds: 100 * attemptCount));
           }
         }
       }

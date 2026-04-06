@@ -113,6 +113,10 @@ class Config {
     'FEATURE_AI_DANGER',
     defaultValue: true,
   );
+  static const bool enableGeminiAssistant = bool.fromEnvironment(
+    'FEATURE_GEMINI_ASSISTANT',
+    defaultValue: true,
+  );
 
   static bool get isLiveStreamingEnabled =>
       enableLiveStreaming && agoraAppId.isNotEmpty;
@@ -120,6 +124,8 @@ class Config {
   static bool get isFaceRecognitionEnabled => enableFaceRecognition;
   static bool get isVoiceDistressEnabled => enableVoiceDistress;
   static bool get isAIDangerPredictionEnabled => enableAIDangerPrediction;
+  static bool get isGeminiAssistantEnabled =>
+      enableGeminiAssistant && backendUrl.isNotEmpty && backendApiKey.isNotEmpty;
 
   static String? get liveStreamingDisabledReason {
     if (!enableLiveStreaming) {
@@ -159,6 +165,19 @@ class Config {
     return null;
   }
 
+  static String? get geminiAssistantDisabledReason {
+    if (!enableGeminiAssistant) {
+      return 'Set FEATURE_GEMINI_ASSISTANT=true via --dart-define';
+    }
+    if (backendUrl.isEmpty) {
+      return 'Configure BACKEND_URL via --dart-define';
+    }
+    if (backendApiKey.isEmpty) {
+      return 'Configure BACKEND_API_KEY via --dart-define';
+    }
+    return null;
+  }
+
   static int get enabledRevolutionaryFeatureCount {
     var count = 3; // Fake Call, Panic Widget and Ride Tracking are always enabled.
     if (isLiveStreamingEnabled) count++;
@@ -166,6 +185,7 @@ class Config {
     if (isFaceRecognitionEnabled) count++;
     if (isVoiceDistressEnabled) count++;
     if (isAIDangerPredictionEnabled) count++;
+    if (isGeminiAssistantEnabled) count++;
     return count;
   }
 

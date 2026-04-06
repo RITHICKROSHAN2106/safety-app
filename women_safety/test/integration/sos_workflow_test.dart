@@ -3,6 +3,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:women_safety/app.dart';
 import 'package:women_safety/main.dart' as app;
 import 'package:women_safety/utils/test_logger.dart';
 
@@ -17,9 +18,9 @@ void main() {
 
       // STEP 1: Launch App
       TestLogger.logInfo('STEP 1: Launching app', 'E2E');
-      app.main();
+      await app.main();
       await tester.pumpAndSettle(const Duration(seconds: 3));
-      expect(find.byType(app.WomenSafetyApp), findsWidgets);
+      expect(find.byType(WomenSafetyApp), findsWidgets);
       TestLogger.logSuccess('App launched successfully');
 
       // STEP 2: Login User
@@ -72,7 +73,7 @@ void main() {
       TestLogger.logInfo('Testing panic widget trigger with app backgrounded', 'E2E');
 
       // Launch app
-      app.main();
+      await app.main();
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
       // Simulate app being backgrounded
@@ -92,7 +93,7 @@ void main() {
       TestLogger.logInfo('Testing location tracking during SOS', 'E2E');
 
       // Setup
-      app.main();
+      await app.main();
       await tester.pumpAndSettle();
       await _loginUser(tester, 'test@womensafety.com', 'Test@123456');
 
@@ -115,7 +116,7 @@ void main() {
     testWidgets('E2E: Audio/Video Recording During SOS', (WidgetTester tester) async {
       TestLogger.logInfo('Testing audio/video recording during SOS', 'E2E');
 
-      app.main();
+      await app.main();
       await tester.pumpAndSettle();
       await _loginUser(tester, 'test@womensafety.com', 'Test@123456');
 
@@ -134,7 +135,7 @@ void main() {
     testWidgets('E2E: SOS with No Internet Connection', (WidgetTester tester) async {
       TestLogger.logInfo('Testing SOS with offline mode', 'E2E');
 
-      app.main();
+      await app.main();
       await tester.pumpAndSettle();
       await _loginUser(tester, 'test@womensafety.com', 'Test@123456');
 
@@ -159,7 +160,7 @@ void main() {
     testWidgets('E2E: Automatic Retry on API Failure', (WidgetTester tester) async {
       TestLogger.logInfo('Testing automatic retry on API failure', 'E2E');
 
-      app.main();
+      await app.main();
       await tester.pumpAndSettle();
       await _loginUser(tester, 'test@womensafety.com', 'Test@123456');
 
@@ -182,7 +183,7 @@ void main() {
     testWidgets('E2E: Multiple Guardian Notifications', (WidgetTester tester) async {
       TestLogger.logInfo('Testing notifications to multiple guardians', 'E2E');
 
-      app.main();
+      await app.main();
       await tester.pumpAndSettle();
       await _loginUser(tester, 'test@womensafety.com', 'Test@123456');
 
@@ -205,7 +206,7 @@ void main() {
     testWidgets('E2E: SOS UI State Transitions', (WidgetTester tester) async {
       TestLogger.logInfo('Testing SOS UI state transitions', 'E2E');
 
-      app.main();
+      await app.main();
       await tester.pumpAndSettle();
       await _loginUser(tester, 'test@womensafety.com', 'Test@123456');
 
@@ -229,7 +230,7 @@ void main() {
     testWidgets('E2E: Session Recovery After App Crash', (WidgetTester tester) async {
       TestLogger.logInfo('Testing session recovery after crash', 'E2E');
 
-      app.main();
+      await app.main();
       await tester.pumpAndSettle();
       await _loginUser(tester, 'test@womensafety.com', 'Test@123456');
 
@@ -238,7 +239,7 @@ void main() {
       await Future.delayed(Duration(milliseconds: 500));
 
       // Relaunch app
-      app.main();
+      await app.main();
       await tester.pumpAndSettle();
       TestLogger.logAuth('Session recovered after restart');
 

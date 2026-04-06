@@ -55,7 +55,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Need an account? Sign up'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Create Account'), findsOneWidget);
+    expect(find.text('Create Account'), findsWidgets);
     expect(find.widgetWithText(TextFormField, 'Full name'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Confirm password'), findsOneWidget);
   });

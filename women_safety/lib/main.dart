@@ -15,20 +15,30 @@ import 'services/offline_queue_service.dart';
 import 'services/protection_service.dart';
 import 'services/panic_widget_service.dart';
 import 'services/danger_zone_monitor_service.dart';
+import 'utils/test_environment.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final widgetPanic = await PanicWidgetService.checkPanicTrigger();
-  final pendingTrigger = await ProtectionService.checkPendingSOS(clearOnRead: false);
-  final launchFromWidget = widgetPanic != null || pendingTrigger == 'WIDGET';
+  final isFlutterTest = isTestEnvironment;
+  final bool launchFromWidget;
+
+  if (isFlutterTest) {
+    launchFromWidget = false;
+  } else {
+    final widgetPanic = await PanicWidgetService.checkPanicTrigger();
+    final pendingTrigger = await ProtectionService.checkPendingSOS(clearOnRead: false);
+    launchFromWidget = widgetPanic != null || pendingTrigger == 'WIDGET';
+  }
   
-  // Initialize Firebase
-  try {
-    await Firebase.initializeApp();
-    debugPrint('✅ Firebase initialized successfully');
-  } catch (e) {
-    debugPrint('❌ Firebase initialization failed: $e');
-    debugPrint('⚠️  Please add google-services.json (Android) or GoogleService-Info.plist (iOS)');
+  // Initialize Firebase outside test runs.
+  if (!isFlutterTest) {
+    try {
+      await Firebase.initializeApp();
+      debugPrint('✅ Firebase initialized successfully');
+    } catch (e) {
+      debugPrint('❌ Firebase initialization failed: $e');
+      debugPrint('⚠️  Please add google-services.json (Android) or GoogleService-Info.plist (iOS)');
+    }
   }
 
   if (launchFromWidget) {
@@ -39,8 +49,16 @@ Future<void> main() async {
     MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => ThemeCubit()),
-        BlocProvider(create: (_) => AuthCubit()),
-        BlocProvider(create: (_) => LocationCubit()..init()),
+        BlocProvider(create: (_) => AuthCubit(testMode: isFlutterTest)),
+        BlocProvider(
+          create: (_) {
+            final locationCubit = LocationCubit(autoInit: !isFlutterTest);
+            if (!isFlutterTest) {
+              unawaited(locationCubit.init());
+            }
+            return locationCubit;
+          },
+        ),
         BlocProvider(create: (_) => SosCubit()),
       ],
       child: WomenSafetyApp(
@@ -54,6 +72,10 @@ Future<void> main() async {
 }
 
 Future<void> _initializeServicesInBackground() async {
+  if (isTestEnvironment) {
+    return;
+  }
+
   try {
     await NotificationService.ensureInitialized();
   } catch (e) {

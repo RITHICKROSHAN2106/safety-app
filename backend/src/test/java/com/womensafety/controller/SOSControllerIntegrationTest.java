@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 class SOSControllerIntegrationTest {
 
@@ -50,6 +50,7 @@ class SOSControllerIntegrationTest {
     @Autowired
     private SOSAlertRepository sosAlertRepository;
 
+    @SuppressWarnings("removal")
     @MockBean
     private NotificationService notificationService;
 

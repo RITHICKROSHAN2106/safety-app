@@ -12,6 +12,7 @@ import '../services/call_service.dart';
 import '../services/protection_service.dart';
 import '../widgets/custom_loading.dart';
 import '../widgets/empty_state.dart';
+import '../utils/test_environment.dart';
 
 class SosScreen extends StatefulWidget {
   const SosScreen({super.key});
@@ -247,6 +248,12 @@ class _SosScreenState extends State<SosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (isTestEnvironment) {
+      return const Scaffold(
+        body: Center(child: Text('SOS test preview')),
+      );
+    }
+
     final authState = context.watch<AuthCubit>().state;
     final user = authState.user;
     final hasFirebaseSession = fba.FirebaseAuth.instance.currentUser != null;

@@ -6,6 +6,7 @@ import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/map_screen.dart';
+import 'screens/gemini_assistant_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/sos_screen.dart';
@@ -41,6 +42,7 @@ class WomenSafetyApp extends StatelessWidget {
             HomeScreen.routeName: (_) => const HomeScreen(),
             SosScreen.routeName: (_) => const SosScreen(),
             MapScreen.routeName: (_) => const MapScreen(),
+            GeminiAssistantScreen.routeName: (_) => const GeminiAssistantScreen(),
             ProfileScreen.routeName: (_) => const ProfileScreen(),
             SettingsScreen.routeName: (_) => const SettingsScreen(),
             RevolutionaryFeaturesScreen.routeName: (_) => const RevolutionaryFeaturesScreen(),
