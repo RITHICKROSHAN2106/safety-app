@@ -42,11 +42,10 @@ class Config {
   // Voice Activation Keywords
   static const List<String> emergencyKeywords = [
     'help me',
-    'help',
     'emergency',
-    'sos',
     'danger',
-    'save me',
+    'rescue',
+    'need help',
   ];
 
   // Backend API Configuration (for automatic SMS)

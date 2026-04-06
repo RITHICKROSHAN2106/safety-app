@@ -83,13 +83,18 @@ class DangerZoneMonitorService {
       final level = (prediction['level'] as String?) ?? 'UNKNOWN';
       final zoneDetails = prediction['zoneDetails'] as Map<String, dynamic>?;
       final inDangerZone = zoneDetails?['inDangerZone'] == true;
+      final isMostDangerousPlace = zoneDetails?['isMostDangerousPlace'] == true;
 
       if (inDangerZone && !_wasInDangerZone) {
         final zoneName = zoneDetails?['zoneName'] as String? ?? 'an unsafe area';
+        final city = (zoneDetails?['city'] as String?) ?? '';
+        final dangerBody = isMostDangerousPlace
+            ? 'You entered one of the most dangerous hotspots${city.isNotEmpty ? ' in $city' : ''}: $zoneName. Leave this area immediately or seek help.'
+            : 'You entered $zoneName. Stay alert and avoid isolated routes.';
         await NotificationService.showNotification(
           id: 1201,
-          title: '⚠️ Unsafe Area Alert',
-          body: 'You entered $zoneName. Stay alert and avoid isolated routes.',
+          title: isMostDangerousPlace ? '🚨 Critical Hotspot Warning' : '⚠️ Unsafe Area Alert',
+          body: dangerBody,
           payload: 'danger_zone_entered',
         );
       }

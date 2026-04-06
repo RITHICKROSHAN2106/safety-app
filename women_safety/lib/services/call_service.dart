@@ -1,98 +1,117 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/guardian.dart';
+import 'call_escalation_service.dart';
+
+enum CallOutcome {
+  answered,
+  rejected,
+  missed,
+  timeout,
+  unknown,
+}
 
 class CallService {
+  static const MethodChannel _callChannel = MethodChannel('women_safety/call');
+  static const EventChannel _callStateChannel = EventChannel('women_safety/call_state');
+
   /// Make emergency call to primary contact
   static Future<bool> makeEmergencyCall(List<Guardian> contacts) async {
-    final callStarted = await _placeCallWithEscalation(
-      contacts: contacts,
-      attemptIndex: 0,
-    );
-
-    return callStarted;
-  }
-
-  static Future<bool> _placeCallWithEscalation({
-    required List<Guardian> contacts,
-    required int attemptIndex,
-  }) async {
-    try {
-      if (contacts.isEmpty) {
-        debugPrint('❌ No emergency contacts available');
-        return false;
-      }
-
-      // Find primary contact
-      Guardian targetContact;
-
-      if (attemptIndex == 0) {
-        targetContact = contacts.firstWhere(
-          (contact) => contact.isPrimary,
-          orElse: () => contacts.first,
-        );
-      } else {
-        final nonPrimary = contacts
-            .where((contact) => !contact.isPrimary)
-            .toList(growable: false);
-
-        if (nonPrimary.isEmpty) {
-          debugPrint('ℹ️ No additional contacts for escalation');
-          return false;
-        }
-
-        if (attemptIndex - 1 >= nonPrimary.length) {
-          debugPrint('ℹ️ Escalation attempts exhausted');
-          return false;
-        }
-
-        targetContact = nonPrimary[attemptIndex - 1];
-      }
-
-      if (targetContact.phone.isEmpty) {
-        debugPrint('❌ Target contact missing phone number');
-        return false;
-      }
-
-      final callPlaced = await makeCall(targetContact.phone);
-
-      if (!callPlaced) {
-        debugPrint('⚠️ Call attempt failed for ${targetContact.name}');
-        return false;
-      }
-
-      debugPrint('✅ Call initiated to ${targetContact.name} (${targetContact.phone})');
-      return true;
-    } catch (e) {
-      debugPrint('❌ Emergency call error: $e');
+    if (contacts.isEmpty) {
+      debugPrint('❌ No emergency contacts available');
       return false;
     }
+
+    await CallEscalationService.startEscalation(
+      guardians: contacts,
+      callEmergencyServicesOnFailure: true,
+    );
+    return true;
   }
 
   /// Make call to specific phone number
   static Future<bool> makeCall(String phoneNumber) async {
     try {
-      if (await _tryDirectCall(phoneNumber)) {
-        debugPrint('✅ Direct call placed to $phoneNumber');
+      final launched = await _tryDirectCall(phoneNumber);
+      if (launched) {
+        debugPrint('✅ Direct call started for $phoneNumber');
         return true;
       }
 
-      if (await _launchDialer(phoneNumber)) {
-        debugPrint('ℹ️ Fallback dialer opened for $phoneNumber');
-        return true;
-      }
-
-      debugPrint('❌ Cannot initiate phone call to $phoneNumber');
+      debugPrint('⚠️ Direct call unavailable for $phoneNumber');
       return false;
     } catch (e) {
       debugPrint('❌ Call service error: $e');
       return false;
     }
+  }
+
+  static Future<CallOutcome> waitForCallOutcome({
+    Duration timeout = const Duration(seconds: 45),
+    Duration answeredThreshold = const Duration(seconds: 15),
+  }) async {
+    if (!Platform.isAndroid) {
+      return CallOutcome.unknown;
+    }
+
+    final completer = Completer<CallOutcome>();
+    StreamSubscription<dynamic>? subscription;
+    Timer? timeoutTimer;
+
+    DateTime? offHookAt;
+    bool sawOffHook = false;
+
+    void finish(CallOutcome outcome) {
+      if (!completer.isCompleted) {
+        completer.complete(outcome);
+      }
+    }
+
+    timeoutTimer = Timer(timeout, () {
+      finish(CallOutcome.timeout);
+    });
+
+    subscription = _callStateChannel.receiveBroadcastStream().listen(
+      (dynamic event) {
+        final data = event is Map ? event : const <String, dynamic>{};
+        final state = (data['state'] as String? ?? '').toUpperCase();
+        final now = DateTime.now();
+
+        if (state == 'OFFHOOK') {
+          sawOffHook = true;
+          offHookAt ??= now;
+          return;
+        }
+
+        if (state == 'IDLE') {
+          if (!sawOffHook) {
+            finish(CallOutcome.missed);
+            return;
+          }
+
+          final start = offHookAt ?? now;
+          final duration = now.difference(start);
+          if (duration >= answeredThreshold) {
+            finish(CallOutcome.answered);
+          } else {
+            finish(CallOutcome.rejected);
+          }
+        }
+      },
+      onError: (_) {
+        finish(CallOutcome.unknown);
+      },
+    );
+
+    final result = await completer.future;
+    await subscription.cancel();
+    timeoutTimer.cancel();
+    return result;
   }
 
   /// Attempt a direct phone call when platform and permissions allow.
@@ -117,31 +136,15 @@ class CallService {
 
     try {
       final sanitizedNumber = phoneNumber.replaceAll(RegExp(r'\s+'), '');
-      debugPrint('📞 Attempting direct call to $sanitizedNumber...');
-      final success = await FlutterPhoneDirectCaller.callNumber(sanitizedNumber);
-      
-      if (success == true) {
-        debugPrint('✅ Direct call successfully initiated');
-        return true;
-      } else {
-        debugPrint('⚠️ Direct call returned false, will try dialer');
-        return false;
-      }
+      final result = await _callChannel.invokeMethod<bool>('startDirectCall', {
+        'phone': sanitizedNumber,
+      });
+
+      return result ?? false;
     } catch (e) {
-      debugPrint('❌ Direct call exception: $e');
+      debugPrint('❌ Native direct call exception: $e');
       return false;
     }
-  }
-
-  static Future<bool> _launchDialer(String phoneNumber) async {
-    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
-
-    if (await canLaunchUrl(phoneUri)) {
-      await launchUrl(phoneUri);
-      return true;
-    }
-
-    return false;
   }
 
   /// Call emergency services (911, 112, 100, etc.)

@@ -39,12 +39,19 @@ class SOSService {
       debugPrint('🚨 Trigger Type: $triggerType');
       debugPrint('🚨 User: ${user.name}');
       debugPrint('🚨 Emergency Contacts: ${emergencyContacts.length}');
+      final alertContacts = _buildAlertRecipients(emergencyContacts);
+      debugPrint('🚨 Alert Recipients (normalized): ${alertContacts.length}');
       
       // STEP 1: Get current location
       debugPrint('\n📍 STEP 1: Getting current location...');
       Position? position = await _getCurrentLocation();
       if (position == null) {
-        debugPrint('❌ Failed to get location, using default');
+        debugPrint('❌ Failed to get location, trying last known location...');
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      if (position == null) {
+        debugPrint('❌ Failed to get any location, using fallback 0,0');
         position = Position(
           latitude: 0.0,
           longitude: 0.0,
@@ -97,7 +104,7 @@ class SOSService {
         final trackingSessionId = await trackingService.startTracking(
           userId: user.id,
           sosId: alert.id ?? 'sos_${DateTime.now().millisecondsSinceEpoch}',
-          guardianPhones: emergencyContacts.map((g) => g.phone).toList(),
+          guardianPhones: alertContacts.map((g) => g.phone).toList(),
           initialLocation: {
             'latitude': alert.latitude,
             'longitude': alert.longitude,
@@ -142,7 +149,7 @@ class SOSService {
       final sosMessages = MultiChannelMessageBuilder.buildSOSMessages(
         alert: alert,
         userName: user.name,
-        contactName: emergencyContacts.isNotEmpty ? emergencyContacts[0].name : 'Guardian',
+        contactName: alertContacts.isNotEmpty ? alertContacts[0].name : 'Guardian',
       );
       
       if (sosMessages.isLocationDataComplete()) {
@@ -156,23 +163,23 @@ class SOSService {
       debugPrint('\n📱 STEP 4.1: Sending SMS alerts with unified location...');
       bool smsSent = false;
       try {
-        final automaticSmsSent = await BackendSmsService.sendAutomaticSOSSms(
-          contacts: emergencyContacts,
+        final directSmsSent = await SmsService.sendSOSSms(
+          contacts: alertContacts,
           alert: alert,
-          userName: user.name,
+          customMessage: sosMessages.sms,
         );
-        smsSent = automaticSmsSent;
+        smsSent = directSmsSent;
       } catch (e) {
-        debugPrint('⚠️ Automatic SMS service error: $e');
+        debugPrint('⚠️ Direct device SMS error: $e');
         smsSent = false;
       }
       
       if (!smsSent) {
-        debugPrint('  ⚠️ Automatic SMS failed, opening device SMS composer with location...');
-        smsSent = await SmsService.sendSOSSms(
-          contacts: emergencyContacts,
+        debugPrint('  ⚠️ Direct device SMS failed, trying automatic SMS gateway...');
+        smsSent = await BackendSmsService.sendAutomaticSOSSms(
+          contacts: alertContacts,
           alert: alert,
-          customMessage: sosMessages.sms, // ✅ Use unified message with location
+          userName: user.name,
         );
       }
 
@@ -183,14 +190,14 @@ class SOSService {
       // STEP 4.2: Queue for offline retry if needed
       if (!smsSent) {
         debugPrint('\n💾 Queueing alert for offline retry...');
-        await _queueForOfflineRetry(user, emergencyContacts, alert);
+        await _queueForOfflineRetry(user, alertContacts, alert);
       }
 
       // STEP 5: Make call to primary contact with smart escalation
-      if (makeCall && emergencyContacts.isNotEmpty) {
+      if (makeCall && alertContacts.isNotEmpty) {
         debugPrint('\n📞 STEP 5: Starting smart call escalation...');
         CallEscalationService.startEscalation(
-          guardians: emergencyContacts,
+          guardians: alertContacts,
           callEmergencyServicesOnFailure: true,
         );
       } else {
@@ -199,11 +206,11 @@ class SOSService {
 
       // STEP 6: Send WhatsApp messages with unified location (parallel, non-blocking)
       debugPrint('\n💬 STEP 6: Sending WhatsApp messages with location...');
-      _sendWhatsAppAsync(emergencyContacts, sosMessages); // ✅ Pass unified messages
+      _sendWhatsAppAsync(alertContacts, sosMessages); // ✅ Pass unified messages
 
       // STEP 7: Send email alerts with unified location (parallel, non-blocking)
       debugPrint('\n📧 STEP 7: Sending email alerts with location...');
-      _sendEmailAsync(emergencyContacts, sosMessages, user.name); // ✅ Pass unified messages
+      _sendEmailAsync(alertContacts, sosMessages, user.name); // ✅ Pass unified messages
 
       // STEP 8: Send to backend API
       debugPrint('\n🌐 STEP 8: Sending alert to backend...');
@@ -407,6 +414,76 @@ Please contact me immediately!
     }
   }
 
+  static List<Guardian> _buildAlertRecipients(List<Guardian> guardians) {
+    final primary = guardians.where((g) => g.isPrimary).toList(growable: false);
+    final source = primary.isNotEmpty ? primary : guardians;
+
+    final recipients = <String, Guardian>{};
+    for (final guardian in source) {
+      final phones = _extractPhoneNumbers(guardian.phone);
+      for (final phone in phones) {
+        recipients[phone] = guardian.copyWith(phone: phone);
+      }
+    }
+
+    return recipients.values.toList(growable: false);
+  }
+
+  static List<String> _extractPhoneNumbers(String rawPhone) {
+    final raw = rawPhone.trim();
+    if (raw.isEmpty) {
+      return const <String>[];
+    }
+
+    final splitCandidates = raw
+        .split(RegExp(r'[;,\n\r\t ]+'))
+        .where((part) => part.trim().isNotEmpty)
+        .toList(growable: false);
+
+    final candidates = splitCandidates.isEmpty ? <String>[raw] : splitCandidates;
+    final unique = <String>{};
+    for (final candidate in candidates) {
+      final normalized = candidate.trim().replaceAll(RegExp(r'\D'), '');
+      if (normalized.isEmpty) {
+        continue;
+      }
+
+      final expanded = _expandMergedDigits(normalized);
+      for (final phone in expanded) {
+        if (phone.isNotEmpty) {
+          unique.add(phone);
+        }
+      }
+    }
+
+    return unique.toList(growable: false);
+  }
+
+  static List<String> _expandMergedDigits(String digits) {
+    final len = digits.length;
+    if (len == 10 || (len == 12 && digits.startsWith('91'))) {
+      return <String>[digits];
+    }
+
+    if (len > 12 && len % 12 == 0 && digits.startsWith('91')) {
+      final parts = <String>[];
+      for (var i = 0; i < len; i += 12) {
+        parts.add(digits.substring(i, i + 12));
+      }
+      return parts;
+    }
+
+    if (len > 10 && len % 10 == 0) {
+      final parts = <String>[];
+      for (var i = 0; i < len; i += 10) {
+        parts.add(digits.substring(i, i + 10));
+      }
+      return parts;
+    }
+
+    return <String>[digits];
+  }
+
   /// Send alert to backend API
   static Future<SOSAlert?> _sendToBackend(SOSAlert alert) async {
     try {
@@ -552,7 +629,9 @@ Please contact me immediately!
         debugPrint('  🗣️ Starting voice distress analysis...');
         try {
           await DistressVoiceAnalysisService.initialize();
-          final distressStream = await DistressVoiceAnalysisService.startAnalysis();
+          final distressStream = await DistressVoiceAnalysisService.startAnalysis(
+            emergencyMode: true,
+          );
 
           // Listen for high distress levels
           distressStream.listen((data) {

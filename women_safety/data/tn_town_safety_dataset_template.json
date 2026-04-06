@@ -1,0 +1,77 @@
+[
+  {
+    "town": "Coimbatore",
+    "latitude": 11.0168,
+    "longitude": 76.9558,
+    "riskyAreas": [
+      {
+        "name": "Ukkadam Bus Stand Back Lanes",
+        "latitude": 10.9906,
+        "longitude": 76.9612,
+        "risk": "HIGH",
+        "reason": "Low visibility after 10 PM and sparse patrol frequency"
+      },
+      {
+        "name": "Town Hall Market Side Streets",
+        "latitude": 10.9981,
+        "longitude": 76.9589,
+        "risk": "MEDIUM",
+        "reason": "Crowd pockets and pickpocket activity during late evenings"
+      }
+    ],
+    "policeStations": [
+      {
+        "name": "B1 Bazaar Police Station",
+        "latitude": 10.9977,
+        "longitude": 76.9567,
+        "type": "Police Station",
+        "contact": "+91 422 230 0250"
+      }
+    ],
+    "governmentSources": [
+      {
+        "name": "Tamil Nadu Police",
+        "url": "https://eservices.tnpolice.gov.in",
+        "dataset": "Police station and jurisdiction information",
+        "integrationMode": "curated_snapshot"
+      },
+      {
+        "name": "Open Government Data (India)",
+        "url": "https://data.gov.in",
+        "dataset": "Public safety datasets",
+        "integrationMode": "curated_snapshot"
+      }
+    ]
+  },
+  {
+    "town": "Kumbakonam",
+    "latitude": 10.9601,
+    "longitude": 79.3774,
+    "riskyAreas": [
+      {
+        "name": "Bus Stand Rear Access",
+        "latitude": 10.9634,
+        "longitude": 79.3759,
+        "risk": "HIGH",
+        "reason": "Low lighting and isolated movement after late evening"
+      }
+    ],
+    "policeStations": [
+      {
+        "name": "Kumbakonam East Police Station",
+        "latitude": 10.9598,
+        "longitude": 79.379,
+        "type": "Police Station",
+        "contact": "+91 100"
+      }
+    ],
+    "governmentSources": [
+      {
+        "name": "Tamil Nadu Police",
+        "url": "https://eservices.tnpolice.gov.in",
+        "dataset": "Station and jurisdiction data",
+        "integrationMode": "curated_snapshot"
+      }
+    ]
+  }
+]

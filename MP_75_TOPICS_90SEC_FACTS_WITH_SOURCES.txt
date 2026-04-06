@@ -1,0 +1,386 @@
+MICRO PRESENTATION NOTES WITH SOURCE CUES (APR 2026)
+Purpose: 90-second speaking support for 75 MBA micro-presentation topics.
+Structure per topic: One statistic, named source, short speaking angle.
+Important: Verify the latest edition/year before final oral delivery.
+
+1) Alternative Energy Sources and Its Benefits
+Statistic: Renewables generated about 30% of global electricity in 2023.
+Source cue: IEA Electricity 2024 and Ember Global Electricity Review 2024.
+90-second angle: Emphasize lower fuel import dependence, cleaner air, and long-term energy price stability.
+
+2) ChatGPT and the possibilities it presents
+Statistic: ChatGPT reached about 100 million monthly active users within months of launch.
+Source cue: UBS evidence lab estimate, 2023.
+90-second angle: Show productivity gains in writing, coding, and customer support, with human oversight on accuracy.
+
+3) Cyber warfare
+Statistic: Cybercrime damage is projected to reach about $10.5 trillion annually by 2025.
+Source cue: Cybersecurity Ventures annual forecast.
+90-second angle: Position cyber threats as national security plus business continuity risk.
+
+4) Environmental protection
+Statistic: Around 7 million premature deaths each year are linked to air pollution.
+Source cue: World Health Organization (WHO) global air pollution fact sheets.
+90-second angle: Link environmental protection to health savings, productivity, and quality of life.
+
+5) Global warming
+Statistic: 2023 was the warmest year on modern instrumental record.
+Source cue: WMO State of the Global Climate and Copernicus climate summaries.
+90-second angle: Explain that climate risk is already affecting agriculture, cities, and insurance costs.
+
+6) Impact of Artificial Intelligence on Job Market Dynamics
+Statistic: About 40% of global jobs are exposed to AI in some form.
+Source cue: IMF report on AI and the labor market, 2024.
+90-second angle: Stress reskilling and role redesign, not only job replacement narratives.
+
+7) Integrity in workplace
+Statistic: Organizations with stronger ethics cultures report fewer major misconduct events.
+Source cue: OECD anti-corruption and corporate compliance analyses.
+90-second angle: Integrity protects reputation, legal exposure, and long-term investor confidence.
+
+8) My plan for my future growth
+Statistic: Written goals are associated with higher achievement rates than unwritten goals.
+Source cue: Dominican University goal-setting study (widely cited).
+90-second angle: Present a practical growth framework: skills, health, network, quarterly review.
+
+9) Sustainable development
+Statistic: More than 700 million people still live in extreme poverty.
+Source cue: World Bank poverty updates.
+90-second angle: Explain how growth, inclusion, and environment must move together.
+
+10) What is more important? Ethics or profit
+Statistic: Corporate scandals have wiped out billions in market capitalization in short periods.
+Source cue: Public market event studies and major case analyses.
+90-second angle: Conclude that ethics is the foundation of durable profit.
+
+11) Self-Reliant India
+Statistic: India has remained among the fastest-growing major economies in recent years.
+Source cue: IMF World Economic Outlook updates.
+90-second angle: Define self-reliance as capability-building with global competitiveness.
+
+12) Sustainable Business Practices: Balancing Profit and Environmental Responsibility
+Statistic: ESG-linked assets are measured in the tens of trillions globally.
+Source cue: Global Sustainable Investment Alliance and major asset-management reports.
+90-second angle: Sustainability is increasingly a finance and risk-management issue.
+
+13) The impact of globalization on the economy and society
+Statistic: Global trade in goods and services exceeds $30 trillion annually.
+Source cue: WTO and UNCTAD global trade updates.
+90-second angle: Highlight gains in growth and efficiency, plus distribution and resilience concerns.
+
+14) The Role of Government in Fostering Entrepreneurship
+Statistic: Easier business entry rules correlate with higher entrepreneurial activity.
+Source cue: World Bank Doing Business legacy indicators and enterprise analyses.
+90-second angle: Good policy reduces friction in credit, compliance, and infrastructure.
+
+15) Ways to Raise a Child as a Leader
+Statistic: Early childhood development has strong long-term effects on learning and earnings.
+Source cue: UNICEF and OECD early learning evidence.
+90-second angle: Leadership begins with responsibility, empathy, and communication habits.
+
+16) Are advertisements necessary?
+Statistic: Global ad spending has crossed the $1 trillion mark.
+Source cue: GroupM/WARC global advertising outlooks.
+90-second angle: Ads are necessary for discovery, but ethical targeting and transparency are critical.
+
+17) Child labour
+Statistic: About 160 million children are in child labor globally.
+Source cue: ILO and UNICEF joint estimate.
+90-second angle: Focus on poverty, schooling access, and enforcement as combined solutions.
+
+18) Do brands rule our lives?
+Statistic: Brand trust significantly influences purchase intent in consumer surveys.
+Source cue: Nielsen and Kantar brand trust research.
+90-second angle: Brands influence choices, but informed consumers still shape market behavior.
+
+19) Ethical Dilemmas in Business Decision-Making
+Statistic: Misconduct-related settlements and fines can run into billions for large firms.
+Source cue: Public enforcement records and major legal case compilations.
+90-second angle: Use a framework: legality, stakeholder impact, transparency, long-term effects.
+
+20) How Technology Improves Businesses
+Statistic: Digitally mature firms often report superior productivity and margin outcomes.
+Source cue: McKinsey digital maturity studies and OECD productivity analyses.
+90-second angle: Technology works best when process redesign and training are included.
+
+21) Impact of entrepreneurship on the economy
+Statistic: SMEs represent roughly 90% of businesses and over half of global employment.
+Source cue: World Bank SME overview.
+90-second angle: Entrepreneurship drives job creation, innovation, and local economic dynamism.
+
+22) Is patience a virtue in business and management?
+Statistic: Long-term strategic investing often outperforms frequent short-term reaction behavior.
+Source cue: Behavioral finance and long-horizon return studies.
+90-second angle: Distinguish strategic patience from decision paralysis.
+
+23) Personal Goals
+Statistic: Specific and measurable goals improve performance outcomes.
+Source cue: Locke and Latham goal-setting research stream.
+90-second angle: Convert goals into weekly actions and tracking metrics.
+
+24) Will MOOC change the nature of higher education?
+Statistic: Cumulative MOOC enrollments have crossed hundreds of millions globally.
+Source cue: Class Central annual MOOC reports.
+90-second angle: MOOCs expand access, while blended models improve completion and depth.
+
+25) Rise of social media Influencers
+Statistic: Influencer marketing spend is in the tens of billions globally.
+Source cue: Influencer Marketing Hub annual benchmark reports.
+90-second angle: Influence economy rewards trust and niche authority more than raw follower count.
+
+26) Social media addiction
+Statistic: Global average daily social media use is around 2+ hours.
+Source cue: DataReportal digital annual reports.
+90-second angle: Discuss attention economy design and personal digital boundaries.
+
+27) Technology in business
+Statistic: Global digital transformation spending is measured in multi-trillion dollar cycles.
+Source cue: IDC digital transformation spending guides.
+90-second angle: Cloud, data, AI, and automation are now baseline capabilities.
+
+28) The Importance of Diversity and Inclusion in Corporate Culture
+Statistic: Diverse leadership teams are associated with stronger innovation outcomes.
+Source cue: McKinsey and BCG diversity research.
+90-second angle: Diversity needs inclusion practices to convert representation into results.
+
+29) The Role of Women in Leadership Positions: Breaking the Glass Ceiling
+Statistic: Women hold about one-third of board seats globally, with regional differences.
+Source cue: Deloitte Women in the Boardroom and WEF gender gap updates.
+90-second angle: Gender-balanced leadership improves governance quality and talent pipelines.
+
+30) Who is a good leader?
+Statistic: Manager quality is a strong predictor of team engagement and retention.
+Source cue: Gallup workplace and manager impact research.
+90-second angle: A good leader sets direction, develops people, and builds trust under pressure.
+
+31) Benefits and Threats of Artificial Intelligence
+Statistic: AI is projected to add trillions to global GDP over the coming decade.
+Source cue: PwC and McKinsey AI economic impact estimates.
+90-second angle: Pair opportunity narrative with fairness, safety, and employment transition risks.
+
+32) Circular Economy: Redefining Sustainability in Business
+Statistic: The world economy is estimated to be less than 10% circular.
+Source cue: Circularity Gap Report.
+90-second angle: Circular design reduces waste and raw material exposure while opening new business models.
+
+33) Effect of social media on youth behaviour
+Statistic: Teen social media adoption is near-universal in many countries.
+Source cue: Pew Research Center youth social media surveys.
+90-second angle: Mention both benefits (community/learning) and risks (comparison/cyberbullying).
+
+34) E-Waste management
+Statistic: Global e-waste reached roughly 62 million metric tonnes in 2022.
+Source cue: UN Global E-waste Monitor.
+90-second angle: E-waste is an environmental hazard and a resource recovery opportunity.
+
+35) How Technology Improves Living Standards
+Statistic: More than 5 billion people are now internet users globally.
+Source cue: International Telecommunication Union (ITU) updates.
+90-second angle: Better access to education, finance, healthcare, and public services.
+
+36) Impacts of Social Media on Mental Health
+Statistic: Heavy social media use is associated with higher anxiety and depression symptoms in many studies.
+Source cue: APA summaries and peer-reviewed meta-analyses.
+90-second angle: Quality, duration, and purpose of use determine outcomes.
+
+37) Job satisfaction or salary
+Statistic: Engagement, manager support, and growth opportunities strongly predict retention.
+Source cue: Gallup State of the Global Workplace and LinkedIn reports.
+90-second angle: Sustainable performance needs both fair pay and meaningful work.
+
+38) Pros and Cons of Diversified Culture
+Statistic: Culturally diverse teams can produce stronger innovation but also higher coordination costs.
+Source cue: Organizational behavior and team-performance studies.
+90-second angle: Build shared norms and communication protocols to capture benefits.
+
+39) Applications of blockchain technology
+Statistic: Major enterprises run blockchain pilots in trade finance, traceability, and identity.
+Source cue: WEF and enterprise blockchain surveys.
+90-second angle: Best use is multi-party trust problems, not every database problem.
+
+40) Role of social media in business
+Statistic: Social and digital channels account for a major share of customer discovery journeys.
+Source cue: Global digital marketing benchmark reports.
+90-second angle: Social media is now core to sales, service, and reputation management.
+
+41) Sports and its influence on youth
+Statistic: WHO recommends at least 60 minutes of daily physical activity for youth.
+Source cue: WHO physical activity guidelines.
+90-second angle: Sports improve health, discipline, teamwork, and confidence.
+
+42) The Future of Work: Remote vs. Office-Based Employment
+Statistic: Hybrid work remains prevalent in many knowledge-intensive sectors.
+Source cue: McKinsey, Gallup, and Microsoft Work Trend reports.
+90-second angle: Best model is role-based hybrid, not one-size-fits-all.
+
+43) The plastic menace
+Statistic: Global plastic production exceeds 400 million tonnes annually.
+Source cue: OECD Global Plastics Outlook and UNEP reports.
+90-second angle: Explain single-use plastic, low recycling rates, and policy plus behavior solutions.
+
+44) The start-up ecosystem in India
+Statistic: India has one of the world’s largest startup ecosystems and over 100 unicorns cumulatively.
+Source cue: DPIIT startup updates and ecosystem trackers.
+90-second angle: Shift focus from valuation to profitability and deep-tech capability.
+
+45) Who is an effective supervisor?
+Statistic: Immediate supervisor quality strongly affects team productivity and morale.
+Source cue: Gallup and workplace management studies.
+90-second angle: Clarity, coaching, fairness, and conflict resolution define supervisor effectiveness.
+
+46) Blockchain Technology: Transforming Industries Beyond Cryptocurrency
+Statistic: Financial institutions and logistics companies have piloted blockchain-based workflows globally.
+Source cue: BIS, WEF, and industry consortium publications.
+90-second angle: Practical transformation appears in settlements, traceability, and tamper-resistant records.
+
+47) Climate change
+Statistic: Atmospheric CO2 has exceeded 420 ppm in recent measurements.
+Source cue: NOAA Global Monitoring Laboratory.
+90-second angle: Climate change increases frequency and severity of extreme weather and economic losses.
+
+48) Emerging gender challenges in society
+Statistic: Global labor-force participation and pay gaps by gender remain significant.
+Source cue: ILO and World Economic Forum Global Gender Gap reports.
+90-second angle: Address care work burden, safety, representation, and digital harassment.
+
+49) Financial Inclusion: Bridging the Gap for the Unbanked
+Statistic: About 1.4 billion adults remain unbanked worldwide.
+Source cue: World Bank Global Findex Database.
+90-second angle: Digital ID, mobile money, and literacy programs are high-impact levers.
+
+50) How to Inspire Others?
+Statistic: Recognition and meaningful progress are major motivation drivers in workplace studies.
+Source cue: Behavioral motivation and organizational psychology research.
+90-second angle: Inspire through credibility, clarity, and visible action.
+
+51) Inclusive Economic Growth: Addressing Income Inequality
+Statistic: High inequality can reduce social mobility and weaken long-run growth.
+Source cue: IMF and OECD inequality analyses.
+90-second angle: Inclusive growth requires jobs, education, health access, and regional balance.
+
+52) Malnourishment and hunger
+Statistic: Hundreds of millions globally remain undernourished.
+Source cue: FAO State of Food Security and Nutrition reports.
+90-second angle: Hunger is a development, health, and productivity emergency.
+
+53) Qualities of a good manager
+Statistic: Manager behavior is one of the strongest determinants of employee engagement.
+Source cue: Gallup manager-effect studies.
+90-second angle: Good managers communicate, coach, and create accountability.
+
+54) Future of Indian space research
+Statistic: Chandrayaan-3 achieved a successful landing near the lunar south polar region in 2023.
+Source cue: ISRO mission updates.
+90-second angle: India’s space program blends scientific ambition with cost-efficient engineering.
+
+55) Role of startups in economic prosperity
+Statistic: Young firms contribute disproportionately to net new job creation in many economies.
+Source cue: OECD and business dynamics datasets.
+90-second angle: Startups accelerate innovation and competitiveness when funding and policy ecosystems are strong.
+
+56) Strategies for Business Resilience in Times of Economic Uncertainty
+Statistic: Firms with stronger liquidity and supply-chain diversification recover faster from shocks.
+Source cue: Post-pandemic resilience studies and consulting benchmarks.
+90-second angle: Resilience requires scenario planning, digital visibility, and adaptive leadership.
+
+57) The Gig Economy: Pros and Cons for Workers and Businesses
+Statistic: Platform-based gig work has expanded rapidly across transport, delivery, and online services.
+Source cue: ILO and World Bank platform work analyses.
+90-second angle: Balance flexibility with income stability and social protection.
+
+58) The Possibility of Life on Mars
+Statistic: Mars missions found signs of ancient water and organic chemistry, but no confirmed life.
+Source cue: NASA rover mission science releases.
+90-second angle: Frame Mars as a scientific test of planetary habitability.
+
+59) Water harvesting
+Statistic: Billions live in water-stressed contexts, and climate variability is intensifying risk.
+Source cue: UN-Water and World Resources Institute water stress indicators.
+90-second angle: Rainwater harvesting is low-cost, local, and climate-adaptive.
+
+60) Why holistic education is important?
+Statistic: Employers increasingly rank soft skills and adaptability among top hiring priorities.
+Source cue: World Economic Forum Future of Jobs reports.
+90-second angle: Holistic learning builds problem-solving, ethics, creativity, and resilience.
+
+61) Business Ethics in the Age of Social Media Scrutiny
+Statistic: Brand crises can escalate globally within hours through social platforms.
+Source cue: Digital reputation and crisis communication studies.
+90-second angle: Ethical consistency plus fast transparent response is essential.
+
+62) Corporate Social Responsibility: A Necessity or a PR Strategy?
+Statistic: Consumers increasingly prefer purpose-aligned brands in survey data.
+Source cue: Edelman Trust Barometer and global consumer sentiment studies.
+90-second angle: CSR works only when tied to measurable outcomes, not slogans.
+
+63) Emotional intelligence
+Statistic: Emotional intelligence predicts collaboration and leadership effectiveness in many studies.
+Source cue: Organizational psychology meta-analyses.
+90-second angle: EI improves conflict management, trust-building, and decision quality.
+
+64) Freedom: Is it a myth?
+Statistic: Civil liberties vary widely across countries according to global freedom indices.
+Source cue: Freedom House annual freedom reports.
+90-second angle: Discuss freedom as rights with responsibility inside social and legal frameworks.
+
+65) Human rights violations
+Statistic: Forced displacement has reached historically high levels globally.
+Source cue: UNHCR Global Trends reports.
+90-second angle: Human rights protection is central to peace, dignity, and stable institutions.
+
+66) Information privacy
+Statistic: Data breaches expose billions of records globally across recent years.
+Source cue: Verizon DBIR and IBM Cost of a Data Breach reports.
+90-second angle: Privacy is a trust and security issue, not only a technical issue.
+
+67) Mobile penetration in rural India and related business opportunities
+Statistic: India has over 1 billion mobile subscriptions with growing rural internet use.
+Source cue: TRAI performance indicators and GSMA reports.
+90-second angle: Rural opportunity sectors include agri-tech, health-tech, education, and fintech.
+
+68) Responsible consumption
+Statistic: Unsustainable consumption patterns are major contributors to emissions and resource depletion.
+Source cue: UNEP sustainable consumption and production assessments.
+90-second angle: Consumer choices and product design both shape sustainability outcomes.
+
+69) Wellness at workplace
+Statistic: Depression and anxiety cost the global economy about $1 trillion per year in lost productivity.
+Source cue: WHO mental health and workplace estimates.
+90-second angle: Wellness policy should include workload design, mental health access, and manager training.
+
+70) Rules are meant to be broken
+Statistic: Rule adherence in safety-critical industries reduces accidents dramatically.
+Source cue: ICAO aviation safety and patient safety literature.
+90-second angle: Improve outdated rules through reform, but do not normalize unsafe rule-breaking.
+
+71) Substance abuse
+Statistic: Harmful alcohol and drug use contributes to millions of deaths annually.
+Source cue: WHO Global Status Reports and UNODC World Drug Reports.
+90-second angle: Prevention, treatment, and social support outperform punishment-only approaches.
+
+72) The Impact of Digital Transformation on Traditional Business Models
+Statistic: Digital-native firms have disrupted multiple legacy sectors in under a decade.
+Source cue: Industry disruption and productivity studies.
+90-second angle: Traditional firms must redesign operating models, not just digitize interfaces.
+
+73) The Rise of E-commerce: Challenges and Opportunities for Brick-and-Mortar Retailers
+Statistic: E-commerce share of retail continues to rise globally, while stores still handle most total sales.
+Source cue: UNCTAD e-commerce estimates and national retail datasets.
+90-second angle: Omnichannel strategy is the practical path for physical retailers.
+
+74) Water pollution
+Statistic: A large proportion of wastewater worldwide is still released without adequate treatment.
+Source cue: UN-Water and UNEP wastewater assessments.
+90-second angle: Water treatment infrastructure and industrial compliance are immediate priorities.
+
+75) Why Students Need to Learn About Culture
+Statistic: Intercultural competence is increasingly valued in global employability frameworks.
+Source cue: OECD learning frameworks and WEF skills reports.
+90-second angle: Cultural literacy improves teamwork, respect, and global readiness.
+
+QUICK 90-SECOND DELIVERY TEMPLATE
+1. Start with the statistic (10-15 seconds).
+2. Explain two practical implications (45-50 seconds).
+3. End with your position and one discussion question (20-25 seconds).
+
+END

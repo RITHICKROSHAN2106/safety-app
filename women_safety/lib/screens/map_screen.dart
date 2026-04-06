@@ -10,6 +10,7 @@ import '../bloc/location/location_cubit.dart';
 import '../bloc/auth/auth_cubit.dart';
 import '../services/config.dart';
 import '../services/location_share_service.dart';
+import '../services/whatsapp_service.dart';
 import '../models/guardian.dart';
 
 class MapScreen extends StatefulWidget {
@@ -266,6 +267,18 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
 
+    contacts.removeWhere((c) => c.phone.trim().isEmpty);
+
+    if (contacts.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No valid contact phone numbers found. Update guardians in Profile.'),
+        ),
+      );
+      return;
+    }
+
     if (!context.mounted) return;
 
     showDialog<void>(
@@ -303,6 +316,19 @@ class _MapScreenState extends State<MapScreen> {
           FilledButton.icon(
             onPressed: () async {
               Navigator.pop(dialogContext);
+
+              final isWhatsAppAvailable = await WhatsAppService.isWhatsAppInstalled();
+              if (!isWhatsAppAvailable) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('WhatsApp is not available on this device.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
               final success = await LocationShareService.shareCurrentLocation(
                 contacts: contacts,
                 viaWhatsApp: true,
@@ -312,8 +338,8 @@ class _MapScreenState extends State<MapScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(success
-                        ? '✅ Location shared!'
-                        : '❌ Failed to share location'),
+                        ? '✅ Location shared via WhatsApp!'
+                        : '❌ Failed to share location via WhatsApp'),
                     backgroundColor: success ? Colors.green : Colors.red,
                   ),
                 );

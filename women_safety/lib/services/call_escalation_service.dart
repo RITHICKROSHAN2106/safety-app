@@ -5,6 +5,12 @@ import 'package:flutter/foundation.dart';
 import '../models/guardian.dart';
 import 'call_service.dart';
 
+typedef CallAttemptHandler = Future<bool> Function(String phoneNumber);
+typedef CallOutcomeHandler = Future<CallOutcome> Function({
+  Duration timeout,
+  Duration answeredThreshold,
+});
+
 /// Intelligent call escalation system
 /// Auto-retries calls and escalates through guardian list
 class CallEscalationService {
@@ -12,9 +18,15 @@ class CallEscalationService {
   static Timer? _retryTimer;
   static int _currentAttempt = 0;
   static int _currentGuardianIndex = 0;
-  
-  static const int maxAttemptsPerGuardian = 3;
-  static const Duration retryInterval = Duration(seconds: 30);
+
+  static int maxAttemptsPerGuardian = 3;
+  static Duration retryInterval = const Duration(seconds: 5);
+  static Duration callOutcomeTimeout = const Duration(seconds: 45);
+  static Duration answeredDurationThreshold = const Duration(seconds: 15);
+  static CallAttemptHandler _callAttemptHandler = CallService.makeCall;
+  static CallAttemptHandler _emergencyCallHandler =
+      (number) => CallService.callEmergencyServices(emergencyNumber: number);
+  static CallOutcomeHandler _callOutcomeHandler = CallService.waitForCallOutcome;
 
   /// Start smart call escalation
   static Future<void> startEscalation({
@@ -35,17 +47,18 @@ class CallEscalationService {
     _currentAttempt = 0;
     _currentGuardianIndex = 0;
 
-    debugPrint('🔄 Starting call escalation for ${guardians.length} guardians');
+    final callSequence = _buildCallSequence(guardians);
+    if (callSequence.isEmpty) {
+      debugPrint('❌ No valid guardians in call sequence');
+      stopEscalation();
+      return;
+    }
 
-    // Start with primary guardian
-    final primaryGuardian = guardians.firstWhere(
-      (g) => g.isPrimary,
-      orElse: () => guardians.first,
-    );
+    debugPrint('🔄 Starting call escalation for ${callSequence.length} guardians');
 
     await _attemptCallWithRetry(
-      guardians: guardians,
-      currentGuardian: primaryGuardian,
+      guardians: callSequence,
+      currentGuardian: callSequence.first,
       callEmergencyOnFailure: callEmergencyServicesOnFailure,
     );
   }
@@ -73,15 +86,22 @@ class CallEscalationService {
       'Calling ${currentGuardian.name} (${currentGuardian.phone})',
     );
 
-    final success = await CallService.makeCall(currentGuardian.phone);
+    final success = await _callAttemptHandler(currentGuardian.phone);
 
     if (success) {
-      // Call initiated successfully
-      // Note: We can't detect if call was answered, so we schedule a retry
       debugPrint('✅ Call initiated to ${currentGuardian.name}');
 
+      final outcome = await _waitForOutcomeWithFallback();
+
+      if (outcome == CallOutcome.answered) {
+        debugPrint('✅ Call answered by ${currentGuardian.name}; stopping escalation');
+        stopEscalation();
+        return;
+      }
+
+      debugPrint('⚠️ Call outcome for ${currentGuardian.name}: $outcome');
+
       if (_currentAttempt < maxAttemptsPerGuardian) {
-        // Schedule retry in case call wasn't answered
         _scheduleRetry(
           guardians: guardians,
           currentGuardian: currentGuardian,
@@ -95,12 +115,40 @@ class CallEscalationService {
         );
       }
     } else {
-      // Call failed immediately, try next guardian
       debugPrint('❌ Call failed for ${currentGuardian.name}');
-      _escalateToNext(
-        guardians: guardians,
-        callEmergencyOnFailure: callEmergencyOnFailure,
-      );
+
+      if (_currentAttempt < maxAttemptsPerGuardian) {
+        _scheduleRetry(
+          guardians: guardians,
+          currentGuardian: currentGuardian,
+          callEmergencyOnFailure: callEmergencyOnFailure,
+        );
+      } else {
+        _escalateToNext(
+          guardians: guardians,
+          callEmergencyOnFailure: callEmergencyOnFailure,
+        );
+      }
+    }
+  }
+
+  /// Wait for call outcome, but never block escalation forever if the platform
+  /// does not emit call-state events on a particular device.
+  static Future<CallOutcome> _waitForOutcomeWithFallback() async {
+    try {
+      return await Future.any<CallOutcome>([
+        _callOutcomeHandler(
+          timeout: callOutcomeTimeout,
+          answeredThreshold: answeredDurationThreshold,
+        ),
+        Future<CallOutcome>.delayed(
+          callOutcomeTimeout,
+          () => CallOutcome.timeout,
+        ),
+      ]);
+    } catch (e) {
+      debugPrint('⚠️ Call outcome detection failed, treating as timeout: $e');
+      return CallOutcome.timeout;
     }
   }
 
@@ -136,18 +184,12 @@ class CallEscalationService {
     _currentGuardianIndex++;
     _currentAttempt = 0;
 
-    // Filter out primary guardian to avoid duplicate calls
-    final nonPrimaryGuardians = guardians
-        .where((g) => !g.isPrimary)
-        .toList(growable: false);
-
-    if (_currentGuardianIndex - 1 < nonPrimaryGuardians.length) {
-      // Call next guardian
-      final nextGuardian = nonPrimaryGuardians[_currentGuardianIndex - 1];
+    if (_currentGuardianIndex < guardians.length) {
+      final nextGuardian = guardians[_currentGuardianIndex];
       
       debugPrint(
         '⬆️ Escalating to next guardian: '
-        '${nextGuardian.name} ($_currentGuardianIndex/${guardians.length})',
+        '${nextGuardian.name} (${_currentGuardianIndex + 1}/${guardians.length})',
       );
 
       await _attemptCallWithRetry(
@@ -171,9 +213,7 @@ class CallEscalationService {
   static Future<void> _callEmergencyServices() async {
     debugPrint('🚨 Calling emergency services (112)...');
 
-    final success = await CallService.callEmergencyServices(
-      emergencyNumber: '112',
-    );
+    final success = await _emergencyCallHandler('112');
 
     if (success) {
       debugPrint('✅ Emergency services call initiated');
@@ -193,5 +233,71 @@ class CallEscalationService {
 
     return 'Attempt $_currentAttempt/$maxAttemptsPerGuardian, '
         'Guardian ${_currentGuardianIndex + 1}';
+  }
+
+  @visibleForTesting
+  static void configureForTest({
+    CallAttemptHandler? callAttemptHandler,
+    CallAttemptHandler? emergencyCallHandler,
+    CallOutcomeHandler? callOutcomeHandler,
+    int? maxAttempts,
+    Duration? retryDelay,
+    Duration? outcomeTimeout,
+    Duration? answeredThreshold,
+  }) {
+    if (callAttemptHandler != null) {
+      _callAttemptHandler = callAttemptHandler;
+    }
+    if (emergencyCallHandler != null) {
+      _emergencyCallHandler = emergencyCallHandler;
+    }
+    if (callOutcomeHandler != null) {
+      _callOutcomeHandler = callOutcomeHandler;
+    }
+    if (maxAttempts != null && maxAttempts > 0) {
+      maxAttemptsPerGuardian = maxAttempts;
+    }
+    if (retryDelay != null && retryDelay > Duration.zero) {
+      retryInterval = retryDelay;
+    }
+    if (outcomeTimeout != null && outcomeTimeout > Duration.zero) {
+      callOutcomeTimeout = outcomeTimeout;
+    }
+    if (answeredThreshold != null && answeredThreshold > Duration.zero) {
+      answeredDurationThreshold = answeredThreshold;
+    }
+  }
+
+  @visibleForTesting
+  static void resetTestConfiguration() {
+    _callAttemptHandler = CallService.makeCall;
+    _emergencyCallHandler =
+        (number) => CallService.callEmergencyServices(emergencyNumber: number);
+    _callOutcomeHandler = CallService.waitForCallOutcome;
+    maxAttemptsPerGuardian = 3;
+    retryInterval = const Duration(seconds: 5);
+    callOutcomeTimeout = const Duration(seconds: 45);
+    answeredDurationThreshold = const Duration(seconds: 15);
+  }
+
+  static List<Guardian> _buildCallSequence(List<Guardian> guardians) {
+    // Primary guardians are called first, then non-primary guardians.
+    final primary = guardians.where((g) => g.isPrimary).toList(growable: false);
+    final others = guardians.where((g) => !g.isPrimary).toList(growable: false);
+    final ordered = <Guardian>[...primary, ...others];
+
+    // Deduplicate by normalized phone while preserving first occurrence.
+    final seenPhones = <String>{};
+    final sequence = <Guardian>[];
+    for (final guardian in ordered) {
+      final phone = guardian.phone.replaceAll(RegExp(r'\D'), '');
+      if (phone.isEmpty || seenPhones.contains(phone)) {
+        continue;
+      }
+      seenPhones.add(phone);
+      sequence.add(guardian);
+    }
+
+    return sequence;
   }
 }

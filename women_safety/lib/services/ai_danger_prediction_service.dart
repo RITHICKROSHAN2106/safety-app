@@ -2,6 +2,7 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 /// 🤖 AI Danger Prediction - Predict danger zones using ML
@@ -10,6 +11,11 @@ class AIDangerPredictionService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final Map<String, Map<String, dynamic>> _dangerCache = {};
   static const Duration _cacheTtl = Duration(minutes: 5);
+  static final Map<String, Map<String, dynamic>> _townSafetyDataset = {};
+  static final Map<String, Map<String, double>> _townCenters = {};
+  static DateTime? _townDatasetLoadedAt;
+  static const Duration _townDatasetCacheTtl = Duration(hours: 6);
+  static const String _townDatasetCollection = 'tn_town_safety_datasets';
 
   static const Map<String, Map<String, dynamic>> _citySafetyDataset = {
     'coimbatore': {
@@ -264,6 +270,258 @@ class AIDangerPredictionService {
         },
       ],
     },
+    'tiruppur': {
+      'riskyAreas': [
+        {
+          'name': 'Old Bus Stand Rear Road Stretch',
+          'latitude': 11.1025,
+          'longitude': 77.3461,
+          'risk': 'MEDIUM',
+          'reason': 'Intermittent surveillance and low lighting in side roads after late evenings',
+        },
+        {
+          'name': 'Industrial Estate Link Roads',
+          'latitude': 11.0898,
+          'longitude': 77.3254,
+          'risk': 'HIGH',
+          'reason': 'Sparse pedestrian movement and isolated sections after shift hours',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'Tiruppur North Police Station',
+          'latitude': 11.1084,
+          'longitude': 77.3415,
+          'type': 'Police Station',
+          'contact': '+91 421 220 0145',
+        },
+        {
+          'name': 'Tiruppur South Police Station',
+          'latitude': 11.0907,
+          'longitude': 77.3498,
+          'type': 'Police Station',
+          'contact': '+91 421 223 1100',
+        },
+        {
+          'name': 'Avinashi Road Patrol Booth',
+          'latitude': 11.1115,
+          'longitude': 77.3436,
+          'type': 'Police Booth',
+          'contact': '+91 100',
+        },
+      ],
+    },
+    'vellore': {
+      'riskyAreas': [
+        {
+          'name': 'Old Town Junction Side Streets',
+          'latitude': 12.9228,
+          'longitude': 79.1315,
+          'risk': 'MEDIUM',
+          'reason': 'Congested traffic with blind corners and inconsistent street lighting',
+        },
+        {
+          'name': 'Katpadi Station Rear Access Roads',
+          'latitude': 12.9697,
+          'longitude': 79.1457,
+          'risk': 'HIGH',
+          'reason': 'Low-visibility access routes and sparse patrol presence at late hours',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'Vellore North Police Station',
+          'latitude': 12.9286,
+          'longitude': 79.1336,
+          'type': 'Police Station',
+          'contact': '+91 416 222 1100',
+        },
+        {
+          'name': 'Katpadi Police Station',
+          'latitude': 12.9691,
+          'longitude': 79.1451,
+          'type': 'Police Station',
+          'contact': '+91 416 224 2233',
+        },
+        {
+          'name': 'CMC Zone Safety Booth',
+          'latitude': 12.9247,
+          'longitude': 79.1372,
+          'type': 'Police Booth',
+          'contact': '+91 100',
+        },
+      ],
+    },
+    'tirunelveli': {
+      'riskyAreas': [
+        {
+          'name': 'Junction Bus Stand Peripheral Roads',
+          'latitude': 8.7287,
+          'longitude': 77.7081,
+          'risk': 'MEDIUM',
+          'reason': 'Crowded transit points with low-visibility connector lanes',
+        },
+        {
+          'name': 'Riverbank Service Road Segments',
+          'latitude': 8.7213,
+          'longitude': 77.7428,
+          'risk': 'HIGH',
+          'reason': 'Isolated stretches and reduced movement in late-night windows',
+        },
+      ],
+      'policeStations': [
+        {
+          'name': 'Tirunelveli Town Police Station',
+          'latitude': 8.7271,
+          'longitude': 77.7045,
+          'type': 'Police Station',
+          'contact': '+91 462 233 1100',
+        },
+        {
+          'name': 'Palayamkottai Police Station',
+          'latitude': 8.7323,
+          'longitude': 77.7461,
+          'type': 'Police Station',
+          'contact': '+91 462 257 8899',
+        },
+        {
+          'name': 'Nellai Junction Safety Booth',
+          'latitude': 8.7283,
+          'longitude': 77.7097,
+          'type': 'Police Booth',
+          'contact': '+91 100',
+        },
+      ],
+    },
+  };
+
+  static const Map<String, Map<String, double>> _cityCenters = {
+    'coimbatore': {'latitude': 11.0168, 'longitude': 76.9558},
+    'chennai': {'latitude': 13.0827, 'longitude': 80.2707},
+    'bengaluru': {'latitude': 12.9716, 'longitude': 77.5946},
+    'madurai': {'latitude': 9.9252, 'longitude': 78.1198},
+    'trichy': {'latitude': 10.7905, 'longitude': 78.7047},
+    'salem': {'latitude': 11.6643, 'longitude': 78.1460},
+    'erode': {'latitude': 11.3410, 'longitude': 77.7172},
+    'tiruppur': {'latitude': 11.1085, 'longitude': 77.3411},
+    'vellore': {'latitude': 12.9165, 'longitude': 79.1325},
+    'tirunelveli': {'latitude': 8.7139, 'longitude': 77.7567},
+  };
+
+  static const List<Map<String, String>> _defaultGovernmentSources = [
+    {
+      'name': 'National Crime Records Bureau (NCRB)',
+      'url': 'https://ncrb.gov.in',
+      'dataset': 'Crime in India (annual district/city statistics)',
+      'integrationMode': 'curated_snapshot',
+    },
+    {
+      'name': 'Open Government Data (India)',
+      'url': 'https://data.gov.in',
+      'dataset': 'Public safety, police, and civic datasets',
+      'integrationMode': 'curated_snapshot',
+    },
+    {
+      'name': 'Bureau of Police Research & Development (BPR&D)',
+      'url': 'https://bprd.nic.in',
+      'dataset': 'Police modernization and crime prevention resources',
+      'integrationMode': 'curated_snapshot',
+    },
+    {
+      'name': 'Emergency Response Support System (ERSS-112)',
+      'url': 'https://112.gov.in',
+      'dataset': 'Emergency response infrastructure and support coverage',
+      'integrationMode': 'curated_snapshot',
+    },
+    {
+      'name': 'Ministry of Home Affairs (India)',
+      'url': 'https://www.mha.gov.in',
+      'dataset': 'National-level safety advisories and policing policy updates',
+      'integrationMode': 'curated_snapshot',
+    },
+  ];
+
+  static const Map<String, List<Map<String, String>>> _cityGovernmentSources = {
+    'coimbatore': [
+      {
+        'name': 'Tamil Nadu Police',
+        'url': 'https://eservices.tnpolice.gov.in',
+        'dataset': 'Police station and jurisdiction information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
+    'chennai': [
+      {
+        'name': 'Greater Chennai Police',
+        'url': 'https://chennaipolice.gov.in',
+        'dataset': 'Police station and emergency contact information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
+    'bengaluru': [
+      {
+        'name': 'Bengaluru City Police',
+        'url': 'https://bcp.karnataka.gov.in',
+        'dataset': 'Police station and emergency contact information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
+    'madurai': [
+      {
+        'name': 'Tamil Nadu Police',
+        'url': 'https://eservices.tnpolice.gov.in',
+        'dataset': 'Police station and jurisdiction information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
+    'trichy': [
+      {
+        'name': 'Tamil Nadu Police',
+        'url': 'https://eservices.tnpolice.gov.in',
+        'dataset': 'Police station and jurisdiction information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
+    'salem': [
+      {
+        'name': 'Tamil Nadu Police',
+        'url': 'https://eservices.tnpolice.gov.in',
+        'dataset': 'Police station and jurisdiction information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
+    'erode': [
+      {
+        'name': 'Tamil Nadu Police',
+        'url': 'https://eservices.tnpolice.gov.in',
+        'dataset': 'Police station and jurisdiction information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
+    'tiruppur': [
+      {
+        'name': 'Tamil Nadu Police',
+        'url': 'https://eservices.tnpolice.gov.in',
+        'dataset': 'Police station and jurisdiction information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
+    'vellore': [
+      {
+        'name': 'Tamil Nadu Police',
+        'url': 'https://eservices.tnpolice.gov.in',
+        'dataset': 'Police station and jurisdiction information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
+    'tirunelveli': [
+      {
+        'name': 'Tamil Nadu Police',
+        'url': 'https://eservices.tnpolice.gov.in',
+        'dataset': 'Police station and jurisdiction information',
+        'integrationMode': 'curated_snapshot',
+      },
+    ],
   };
 
   static List<String> get supportedCities =>
@@ -278,9 +536,11 @@ class AIDangerPredictionService {
       _interpreter = await Interpreter.fromAsset('assets/models/danger_prediction_model.tflite');
       
       debugPrint('✅ AI danger prediction initialized');
+      await _ensureTownDatasetsLoaded();
       return true;
     } catch (e) {
       debugPrint('⚠️ AI model not loaded (optional): $e');
+      await _ensureTownDatasetsLoaded();
       return false;
     }
   }
@@ -322,8 +582,13 @@ class AIDangerPredictionService {
         dangerScore = _ruleBasedPrediction(features);
       }
 
-      // Get danger zone details
-      final zoneDetails = await _getDangerZoneDetails(position);
+      // Get danger zone details from dynamic DB zones and curated city hotspots.
+      final dbZoneDetails = await _getDangerZoneDetails(position);
+      final curatedHotspotDetails = await _getCuratedDangerHotspot(position);
+
+      // Curated hotspot risk should raise score when user is near known dangerous pockets.
+      dangerScore = _applyCuratedRiskBoost(dangerScore, curatedHotspotDetails);
+      final zoneDetails = _mergeZoneDetails(dbZoneDetails, curatedHotspotDetails);
 
       final result = {
         'dangerScore': dangerScore,
@@ -569,24 +834,180 @@ class AIDangerPredictionService {
   static Future<List<Position>> getSafeRoute({
     required Position start,
     required Position end,
+    String? city,
   }) async {
-    // In production, integrate with Google Maps Directions API
-    // and filter routes by danger scores
-    
-    final safeRoute = <Position>[start, end];
-    debugPrint('🗺️ Calculating safest route...');
-    
-    return safeRoute;
+    final recommendation = await getRecommendedSafeRoute(
+      start: start,
+      end: end,
+      city: city,
+    );
+
+    return List<Position>.from(recommendation['bestRoute'] as List);
   }
 
-  /// Returns richer safety insights using curated city datasets.
+  /// Rank route candidates using danger prediction.
+  static Future<Map<String, dynamic>> getRecommendedSafeRoute({
+    required Position start,
+    required Position end,
+    String? city,
+    DateTime? time,
+  }) async {
+    time ??= DateTime.now();
+    await _ensureTownDatasetsLoaded();
+
+    final datasets = _allSafetyDatasets();
+
+    final normalizedCity = (city == null || city.trim().isEmpty)
+        ? await _resolveNearestCityName(start)
+        : city.trim().toLowerCase();
+    final cityData = datasets[normalizedCity] ?? datasets['coimbatore'];
+    final datasetSources = _extractGovernmentSourcesFromDataset(cityData);
+    final governmentSources = _getGovernmentSources(
+      normalizedCity,
+      datasetSpecificSources: datasetSources,
+    );
+
+    final nearbyPolice = cityData == null
+        ? <Map<String, dynamic>>[]
+        : (cityData['policeStations'] as List)
+            .map((station) {
+              final lat = (station['latitude'] as num).toDouble();
+              final lng = (station['longitude'] as num).toDouble();
+              final distanceKm = _distanceKm(start.latitude, start.longitude, lat, lng);
+              return {
+                ...Map<String, dynamic>.from(station as Map),
+                'distanceKm': distanceKm,
+                'sourceType': 'government_dataset',
+                'sourceName': governmentSources.first['name'],
+                'sourceUrl': governmentSources.first['url'],
+              };
+            })
+            .toList()
+          ..sort((a, b) => (a['distanceKm'] as double).compareTo(b['distanceKm'] as double));
+
+    final riskyAreas = cityData == null
+        ? <Map<String, dynamic>>[]
+        : (cityData['riskyAreas'] as List)
+            .map((area) {
+              final lat = (area['latitude'] as num).toDouble();
+              final lng = (area['longitude'] as num).toDouble();
+              final distanceKm = _distanceKm(start.latitude, start.longitude, lat, lng);
+              return {
+                ...Map<String, dynamic>.from(area as Map),
+                'distanceKm': distanceKm,
+                'sourceType': 'government_dataset',
+                'sourceName': governmentSources.first['name'],
+                'sourceUrl': governmentSources.first['url'],
+              };
+            })
+            .toList()
+          ..sort((a, b) => (a['distanceKm'] as double).compareTo(b['distanceKm'] as double));
+
+    final candidates = <Map<String, dynamic>>[
+      {
+        'name': 'Direct Route',
+        'description': 'Shortest path, used as a baseline for comparison.',
+        'points': <Position>[start, end],
+        'mapsUrl': 'https://www.google.com/maps/dir/?api=1&origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&travelmode=walking',
+      },
+    ];
+
+    if (nearbyPolice.isNotEmpty) {
+      final station = nearbyPolice.first;
+      final stationPosition = Position(
+        latitude: (station['latitude'] as num).toDouble(),
+        longitude: (station['longitude'] as num).toDouble(),
+        timestamp: time,
+        accuracy: 5,
+        altitude: 0,
+        heading: 0,
+        speed: 0,
+        speedAccuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+      );
+
+      candidates.add({
+        'name': 'Police Corridor Route',
+        'description': 'Passes close to the nearest police station or booth.',
+        'points': <Position>[start, stationPosition, end],
+        'mapsUrl': 'https://www.google.com/maps/dir/?api=1&origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&travelmode=driving',
+      });
+    }
+
+    final avoidanceWaypoint = _buildAvoidanceWaypoint(start: start, end: end, riskyAreas: riskyAreas);
+    if (avoidanceWaypoint != null) {
+      candidates.add({
+        'name': 'Well-Lit Avoidance Route',
+        'description': 'Shifts the route midpoint away from nearby risky areas.',
+        'points': <Position>[start, avoidanceWaypoint, end],
+        'mapsUrl': 'https://www.google.com/maps/dir/?api=1&origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&travelmode=walking',
+      });
+    }
+
+    final scoredCandidates = <Map<String, dynamic>>[];
+    for (final candidate in candidates) {
+      final points = List<Position>.from(candidate['points'] as List);
+      final dangerScore = await _scoreRoute(points, time);
+      final distanceKm = _routeDistanceKm(points);
+      final safetyScore = (10.0 - dangerScore).clamp(0.0, 10.0);
+
+      scoredCandidates.add({
+        ...candidate,
+        'dangerScore': dangerScore,
+        'safetyScore': safetyScore,
+        'distanceKm': distanceKm,
+      });
+    }
+
+    scoredCandidates.sort((a, b) {
+      final dangerComparison = (a['dangerScore'] as double).compareTo(b['dangerScore'] as double);
+      if (dangerComparison != 0) return dangerComparison;
+      return (a['distanceKm'] as double).compareTo(b['distanceKm'] as double);
+    });
+
+    final bestCandidate = scoredCandidates.first;
+
+    return {
+      'bestRouteName': bestCandidate['name'],
+      'bestRouteDescription': bestCandidate['description'],
+      'bestRoute': List<Position>.from(bestCandidate['points'] as List),
+      'bestRouteDangerScore': bestCandidate['dangerScore'],
+      'bestRouteSafetyScore': bestCandidate['safetyScore'],
+      'bestRouteDistanceKm': bestCandidate['distanceKm'],
+      'alternatives': scoredCandidates
+          .map((candidate) => {
+                'name': candidate['name'],
+                'description': candidate['description'],
+                'mapsUrl': candidate['mapsUrl'],
+                'dangerScore': candidate['dangerScore'],
+                'safetyScore': candidate['safetyScore'],
+                'distanceKm': candidate['distanceKm'],
+              })
+          .toList(),
+      'governmentSources': governmentSources,
+    };
+  }
+
+  /// Returns richer safety insights using curated city datasets and
+  /// ML-ranked route recommendations.
   static Future<Map<String, dynamic>> getCitySafetyInsights({
-    required String city,
+    String? city,
     required Position start,
     Position? destination,
   }) async {
-    final normalizedCity = city.trim().toLowerCase();
-    final data = _citySafetyDataset[normalizedCity] ?? _citySafetyDataset['coimbatore']!;
+    await _ensureTownDatasetsLoaded();
+    final datasets = _allSafetyDatasets();
+
+    final normalizedCity = (city == null || city.trim().isEmpty)
+        ? await _resolveNearestCityName(start)
+        : city.trim().toLowerCase();
+    final data = datasets[normalizedCity] ?? datasets['coimbatore']!;
+    final datasetSources = _extractGovernmentSourcesFromDataset(data);
+    final governmentSources = _getGovernmentSources(
+      normalizedCity,
+      datasetSpecificSources: datasetSources,
+    );
 
     final riskyAreas = (data['riskyAreas'] as List)
         .map((area) {
@@ -596,6 +1017,9 @@ class AIDangerPredictionService {
           return {
             ...Map<String, dynamic>.from(area as Map),
             'distanceKm': distanceKm,
+            'sourceType': 'government_dataset',
+            'sourceName': governmentSources.first['name'],
+            'sourceUrl': governmentSources.first['url'],
           };
         })
         .toList()
@@ -609,6 +1033,9 @@ class AIDangerPredictionService {
           return {
             ...Map<String, dynamic>.from(station as Map),
             'distanceKm': distanceKm,
+            'sourceType': 'government_dataset',
+            'sourceName': governmentSources.first['name'],
+            'sourceUrl': governmentSources.first['url'],
           };
         })
         .toList()
@@ -627,32 +1054,46 @@ class AIDangerPredictionService {
       headingAccuracy: 0,
     );
 
-    final saferOptions = <Map<String, dynamic>>[
-      {
-        'name': 'Police Corridor Route',
-        'safetyScore': 9,
-        'description': 'Prioritizes roads near police stations/booths.',
-        'avoidAreas': riskyAreas.take(2).map((e) => e['name']).toList(),
-        'policeStops': nearbyPolice.take(2).map((e) => e['name']).toList(),
-        'mapsUrl':
-            'https://www.google.com/maps/dir/?api=1&origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&travelmode=driving',
-      },
-      {
-        'name': 'Well-Lit Main Road Route',
-        'safetyScore': 8,
-        'description': 'Uses arterial roads and avoids isolated shortcuts.',
-        'avoidAreas': riskyAreas.take(3).map((e) => e['name']).toList(),
-        'policeStops': nearbyPolice.take(1).map((e) => e['name']).toList(),
-        'mapsUrl':
-            'https://www.google.com/maps/dir/?api=1&origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&travelmode=walking',
-      },
-    ];
+    final routeRecommendation = await getRecommendedSafeRoute(
+      start: start,
+      end: end,
+      city: normalizedCity,
+    );
+
+    final saferOptions = (routeRecommendation['alternatives'] as List<dynamic>)
+        .map((candidate) {
+          final safetyScore = (candidate['safetyScore'] as num).toDouble();
+          return {
+            'name': candidate['name'],
+            'safetyScore': safetyScore.round(),
+            'description': candidate['description'],
+            'avoidAreas': riskyAreas.take(3).map((e) => e['name']).toList(),
+            'policeStops': nearbyPolice.take(2).map((e) => e['name']).toList(),
+            'mapsUrl': candidate['mapsUrl'],
+            'routeDangerScore': candidate['dangerScore'],
+            'routeDistanceKm': candidate['distanceKm'],
+          };
+        })
+        .toList();
 
     return {
       'city': _toTitleCase(normalizedCity),
       'riskyAreas': riskyAreas,
       'nearbyPolice': nearbyPolice.take(5).toList(),
       'saferOptions': saferOptions,
+      'routeRecommendation': {
+        'name': routeRecommendation['bestRouteName'],
+        'description': routeRecommendation['bestRouteDescription'],
+        'dangerScore': routeRecommendation['bestRouteDangerScore'],
+        'safetyScore': routeRecommendation['bestRouteSafetyScore'],
+        'distanceKm': routeRecommendation['bestRouteDistanceKm'],
+      },
+      'dataProvenance': {
+        'providerType': 'government',
+        'integrationMode': 'curated_snapshot',
+        'sources': governmentSources,
+        'lastReviewedOn': '2026-04-04',
+      },
     };
   }
 
@@ -699,8 +1140,382 @@ class AIDangerPredictionService {
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
   }
 
+  static List<Map<String, dynamic>> _extractGovernmentSourcesFromDataset(
+    Map<String, dynamic>? dataset,
+  ) {
+    final sources = dataset?['governmentSources'];
+    if (sources is! List) {
+      return const <Map<String, dynamic>>[];
+    }
+
+    return sources
+        .whereType<Map>()
+        .map((source) => source.map((key, value) => MapEntry('$key', value)))
+        .toList(growable: false);
+  }
+
+  static List<Map<String, String>> _getGovernmentSources(
+    String normalizedCity, {
+    List<Map<String, dynamic>>? datasetSpecificSources,
+  }) {
+    final citySources = _cityGovernmentSources[normalizedCity] ?? const <Map<String, String>>[];
+    final datasetSources = (datasetSpecificSources ?? const <Map<String, dynamic>>[])
+        .map((source) => {
+              'name': (source['name'] ?? 'Government Source').toString(),
+              'url': (source['url'] ?? '').toString(),
+              'dataset': (source['dataset'] ?? 'Safety dataset').toString(),
+              'integrationMode': (source['integrationMode'] ?? 'curated_snapshot').toString(),
+            })
+        .toList(growable: false);
+
+    return <Map<String, String>>[
+      ..._defaultGovernmentSources,
+      ...citySources,
+      ...datasetSources,
+    ];
+  }
+
+  static Future<void> _ensureTownDatasetsLoaded({bool forceRefresh = false}) async {
+    if (!forceRefresh &&
+        _townDatasetLoadedAt != null &&
+        DateTime.now().difference(_townDatasetLoadedAt!) <= _townDatasetCacheTtl) {
+      return;
+    }
+
+    try {
+      final snapshot = await _firestore.collection(_townDatasetCollection).get();
+      final loadedTownDataset = <String, Map<String, dynamic>>{};
+      final loadedTownCenters = <String, Map<String, double>>{};
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final normalizedTown = (data['town'] ?? data['city'] ?? doc.id).toString().trim().toLowerCase();
+        if (normalizedTown.isEmpty) {
+          continue;
+        }
+
+        final riskyAreas = _normalizeAreaList(data['riskyAreas']);
+        final policeStations = _normalizeAreaList(data['policeStations']);
+        final governmentSources = _normalizeAreaList(data['governmentSources']);
+
+        loadedTownDataset[normalizedTown] = {
+          'riskyAreas': riskyAreas,
+          'policeStations': policeStations,
+          'governmentSources': governmentSources,
+        };
+
+        final center = data['center'];
+        if (center is GeoPoint) {
+          loadedTownCenters[normalizedTown] = {
+            'latitude': center.latitude,
+            'longitude': center.longitude,
+          };
+        } else {
+          final latitude = _toDouble(data['latitude']);
+          final longitude = _toDouble(data['longitude']);
+          if (latitude != null && longitude != null) {
+            loadedTownCenters[normalizedTown] = {
+              'latitude': latitude,
+              'longitude': longitude,
+            };
+          }
+        }
+      }
+
+      _townSafetyDataset
+        ..clear()
+        ..addAll(loadedTownDataset);
+      _townCenters
+        ..clear()
+        ..addAll(loadedTownCenters);
+      _townDatasetLoadedAt = DateTime.now();
+
+      if (_townSafetyDataset.isNotEmpty) {
+        debugPrint('✅ Loaded ${_townSafetyDataset.length} Tamil Nadu town datasets from Firestore');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to load Tamil Nadu town datasets: $e');
+    }
+  }
+
+  static List<Map<String, dynamic>> _normalizeAreaList(dynamic value) {
+    if (value is! List) {
+      return const <Map<String, dynamic>>[];
+    }
+
+    return value
+        .whereType<Map>()
+        .map((entry) => entry.map((key, val) => MapEntry('$key', val)))
+        .toList(growable: false);
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
+  }
+
+  static Map<String, Map<String, dynamic>> _allSafetyDatasets() {
+    return {
+      ..._citySafetyDataset,
+      ..._townSafetyDataset,
+    };
+  }
+
+  static Position? _buildAvoidanceWaypoint({
+    required Position start,
+    required Position end,
+    required List<Map<String, dynamic>> riskyAreas,
+  }) {
+    final midpointLat = (start.latitude + end.latitude) / 2;
+    final midpointLng = (start.longitude + end.longitude) / 2;
+
+    if (riskyAreas.isEmpty) {
+      return Position(
+        latitude: midpointLat,
+        longitude: midpointLng,
+        timestamp: DateTime.now(),
+        accuracy: 5,
+        altitude: 0,
+        heading: 0,
+        speed: 0,
+        speedAccuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+      );
+    }
+
+    final nearestRisk = riskyAreas.first;
+    final riskLat = (nearestRisk['latitude'] as num).toDouble();
+    final riskLng = (nearestRisk['longitude'] as num).toDouble();
+
+    final latOffset = midpointLat >= riskLat ? 0.004 : -0.004;
+    final lngOffset = midpointLng >= riskLng ? 0.004 : -0.004;
+
+    return Position(
+      latitude: midpointLat + latOffset,
+      longitude: midpointLng + lngOffset,
+      timestamp: DateTime.now(),
+      accuracy: 5,
+      altitude: 0,
+      heading: 0,
+      speed: 0,
+      speedAccuracy: 0,
+      altitudeAccuracy: 0,
+      headingAccuracy: 0,
+    );
+  }
+
+  static double _routeDistanceKm(List<Position> route) {
+    if (route.length < 2) {
+      return 0;
+    }
+
+    var total = 0.0;
+    for (var i = 0; i < route.length - 1; i++) {
+      total += _distanceKm(
+        route[i].latitude,
+        route[i].longitude,
+        route[i + 1].latitude,
+        route[i + 1].longitude,
+      );
+    }
+    return total;
+  }
+
+  static List<Position> _sampleRoutePoints(List<Position> route) {
+    if (route.length <= 2) {
+      return route;
+    }
+
+    final samples = <Position>[route.first];
+    for (var i = 0; i < route.length - 1; i++) {
+      final start = route[i];
+      final end = route[i + 1];
+      samples.add(_interpolatePosition(start, end, 0.33));
+      samples.add(_interpolatePosition(start, end, 0.66));
+      samples.add(end);
+    }
+
+    final deduped = <String, Position>{};
+    for (final point in samples) {
+      final key = '${point.latitude.toStringAsFixed(5)}_${point.longitude.toStringAsFixed(5)}';
+      deduped[key] = point;
+    }
+    return deduped.values.toList(growable: false);
+  }
+
+  static Position _interpolatePosition(Position start, Position end, double ratio) {
+    return Position(
+      latitude: start.latitude + ((end.latitude - start.latitude) * ratio),
+      longitude: start.longitude + ((end.longitude - start.longitude) * ratio),
+      timestamp: DateTime.now(),
+      accuracy: 5,
+      altitude: 0,
+      heading: 0,
+      speed: 0,
+      speedAccuracy: 0,
+      altitudeAccuracy: 0,
+      headingAccuracy: 0,
+    );
+  }
+
+  static Future<double> _scoreRoute(List<Position> route, DateTime time) async {
+    final points = _sampleRoutePoints(route);
+    if (points.isEmpty) {
+      return 10.0;
+    }
+
+    double dangerTotal = 0;
+    for (final point in points) {
+      final prediction = await predictDanger(position: point, time: time);
+      dangerTotal += (prediction['dangerScore'] as num?)?.toDouble() ?? 5.0;
+    }
+
+    final averageDanger = dangerTotal / points.length;
+    final distancePenalty = math.min(_routeDistanceKm(route) / 12.0, 2.0);
+    return (averageDanger + distancePenalty).clamp(0.0, 10.0);
+  }
+
   static String _toTitleCase(String input) {
     if (input.isEmpty) return input;
     return input[0].toUpperCase() + input.substring(1).toLowerCase();
+  }
+
+  static Future<String> _resolveNearestCityName(Position position) async {
+    await _ensureTownDatasetsLoaded();
+    String nearestCity = 'coimbatore';
+    double nearestDistanceKm = double.infinity;
+
+    final centers = {
+      ..._cityCenters,
+      ..._townCenters,
+    };
+
+    centers.forEach((city, center) {
+      final lat = center['latitude']!;
+      final lng = center['longitude']!;
+      final distanceKm = _distanceKm(position.latitude, position.longitude, lat, lng);
+      if (distanceKm < nearestDistanceKm) {
+        nearestDistanceKm = distanceKm;
+        nearestCity = city;
+      }
+    });
+
+    return nearestCity;
+  }
+
+  static Future<Map<String, dynamic>> _getCuratedDangerHotspot(Position position) async {
+    final nearestCity = await _resolveNearestCityName(position);
+    final cityData = _allSafetyDatasets()[nearestCity];
+    if (cityData == null) {
+      return {'inDangerZone': false};
+    }
+
+    final riskyAreas = (cityData['riskyAreas'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    if (riskyAreas.isEmpty) {
+      return {'inDangerZone': false};
+    }
+
+    Map<String, dynamic>? nearestArea;
+    double nearestDistanceKm = double.infinity;
+
+    for (final area in riskyAreas) {
+      final lat = (area['latitude'] as num).toDouble();
+      final lng = (area['longitude'] as num).toDouble();
+      final distanceKm = _distanceKm(position.latitude, position.longitude, lat, lng);
+      if (distanceKm < nearestDistanceKm) {
+        nearestDistanceKm = distanceKm;
+        nearestArea = area;
+      }
+    }
+
+    if (nearestArea == null) {
+      return {'inDangerZone': false};
+    }
+
+    final risk = (nearestArea['risk'] as String? ?? 'LOW').toUpperCase();
+    final entryThresholdKm = risk == 'HIGH' ? 0.90 : 0.60;
+    final inHotspot = nearestDistanceKm <= entryThresholdKm;
+
+    if (!inHotspot) {
+      return {'inDangerZone': false};
+    }
+
+    final mostDangerous = risk == 'HIGH' && nearestDistanceKm <= 0.40;
+
+    return {
+      'inDangerZone': true,
+      'zoneName': nearestArea['name'],
+      'incidentType': 'curated_hotspot',
+      'lastIncident': nearestArea['reason'],
+      'risk': risk,
+      'city': _toTitleCase(nearestCity),
+      'distanceKm': nearestDistanceKm,
+      'sourceType': 'government_dataset',
+      'isMostDangerousPlace': mostDangerous,
+    };
+  }
+
+  static double _applyCuratedRiskBoost(double score, Map<String, dynamic> hotspot) {
+    if (hotspot['inDangerZone'] != true) {
+      return score;
+    }
+
+    final risk = (hotspot['risk'] as String? ?? 'LOW').toUpperCase();
+    final distanceKm = (hotspot['distanceKm'] as num?)?.toDouble() ?? 1.0;
+
+    var boost = 0.0;
+    if (risk == 'HIGH') {
+      boost = distanceKm <= 0.4 ? 2.2 : 1.6;
+    } else if (risk == 'MEDIUM') {
+      boost = distanceKm <= 0.35 ? 1.2 : 0.8;
+    } else {
+      boost = 0.4;
+    }
+
+    return (score + boost).clamp(0.0, 10.0);
+  }
+
+  static Map<String, dynamic> _mergeZoneDetails(
+    Map<String, dynamic> dbZone,
+    Map<String, dynamic> curatedZone,
+  ) {
+    final dbInZone = dbZone['inDangerZone'] == true;
+    final curatedInZone = curatedZone['inDangerZone'] == true;
+
+    if (!dbInZone && !curatedInZone) {
+      return {'inDangerZone': false};
+    }
+
+    if (!dbInZone && curatedInZone) {
+      return curatedZone;
+    }
+
+    if (dbInZone && !curatedInZone) {
+      return dbZone;
+    }
+
+    final curatedRisk = (curatedZone['risk'] as String? ?? 'LOW').toUpperCase();
+    final curatedRank = curatedRisk == 'HIGH' ? 3 : curatedRisk == 'MEDIUM' ? 2 : 1;
+
+    // If both zones are active, prefer curated HIGH/MEDIUM hotspot metadata for warnings.
+    if (curatedRank >= 2) {
+      return {
+        ...dbZone,
+        ...curatedZone,
+        'inDangerZone': true,
+      };
+    }
+
+    return {
+      ...curatedZone,
+      ...dbZone,
+      'inDangerZone': true,
+    };
   }
 }

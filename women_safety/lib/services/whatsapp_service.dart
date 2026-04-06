@@ -4,6 +4,85 @@ import '../models/guardian.dart';
 import '../models/sos_alert.dart';
 
 class WhatsAppService {
+  /// Convert user-entered phone number into WhatsApp-compatible digits.
+  /// wa.me expects international number without '+' or separators.
+  static String _normalizeWhatsAppNumber(String phoneNumber) {
+    var digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+
+    if (digits.startsWith('00')) {
+      digits = digits.substring(2);
+    }
+
+    // Default India country code when only a 10-digit local number is provided.
+    if (digits.length == 10) {
+      digits = '91$digits';
+    }
+
+    if (digits.length == 11 && digits.startsWith('0')) {
+      digits = '91${digits.substring(1)}';
+    }
+
+    return digits;
+  }
+
+  /// Launch WhatsApp using wa.me with fallback to whatsapp:// for better device compatibility.
+  static Future<bool> _launchWhatsAppMessage({
+    required String normalizedNumber,
+    required String message,
+  }) async {
+    final Uri directSchemeUri = Uri.parse(
+      'whatsapp://send?phone=$normalizedNumber&text=${Uri.encodeComponent(message)}',
+    );
+    final Uri waMeUri = Uri.https('wa.me', '/$normalizedNumber', {
+      'text': message,
+    });
+    final Uri genericComposeUri = Uri.parse(
+      'whatsapp://send?text=${Uri.encodeComponent(message)}',
+    );
+
+    // Try direct WhatsApp app URI first (most reliable on Android devices).
+    try {
+      if (await canLaunchUrl(directSchemeUri)) {
+        final launched = await launchUrl(
+          directSchemeUri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (launched) {
+          return true;
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Direct WhatsApp URI failed: $e');
+    }
+
+    // Fallback to wa.me universal link.
+    try {
+      final launched = await launchUrl(
+        waMeUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (launched) {
+        return true;
+      }
+    } catch (e) {
+      debugPrint('⚠️ wa.me launch failed: $e');
+    }
+
+    // Last fallback: open WhatsApp compose without pre-selected number.
+    try {
+      if (await canLaunchUrl(genericComposeUri)) {
+        return await launchUrl(
+          genericComposeUri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Generic WhatsApp compose failed: $e');
+    }
+
+    return false;
+  }
+
   /// Send WhatsApp message with live location to all contacts
   static Future<bool> sendSOSWhatsApp({
     required List<Guardian> contacts,
@@ -61,12 +140,10 @@ class WhatsAppService {
         return false;
       }
 
-      // Remove non-numeric characters
-      String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
-      
-      // Add country code if not present (assuming India +91)
-      if (!cleanNumber.startsWith('+')) {
-        cleanNumber = '+91$cleanNumber';
+      final cleanNumber = _normalizeWhatsAppNumber(phoneNumber);
+      if (cleanNumber.length < 10) {
+        debugPrint('❌ Invalid WhatsApp number for $contactName: $phoneNumber');
+        return false;
       }
 
       // Use custom message if provided, otherwise build from alert
@@ -77,20 +154,16 @@ class WhatsAppService {
         return false;
       }
 
-      // WhatsApp URL scheme
-      final Uri whatsappUri = Uri.parse(
-        'https://wa.me/$cleanNumber?text=${Uri.encodeComponent(finalMessage)}',
+      final launched = await _launchWhatsAppMessage(
+        normalizedNumber: cleanNumber,
+        message: finalMessage,
       );
 
-      if (await canLaunchUrl(whatsappUri)) {
-        await launchUrl(
-          whatsappUri,
-          mode: LaunchMode.externalApplication,
-        );
+      if (launched) {
         debugPrint('✅ WhatsApp sent to $contactName with location');
         return true;
       } else {
-        debugPrint('❌ WhatsApp not installed');
+        debugPrint('❌ Could not open WhatsApp for $contactName');
         return false;
       }
     } catch (e) {
@@ -129,19 +202,22 @@ Location coordinates: ${alert.latitude}, ${alert.longitude}
     String? contactName,
   }) async {
     try {
-      String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
-      if (!cleanNumber.startsWith('+')) {
-        cleanNumber = '+91$cleanNumber';
+      final cleanNumber = _normalizeWhatsAppNumber(phoneNumber);
+      if (cleanNumber.length < 10) {
+        debugPrint('❌ Invalid WhatsApp number for $contactName: $phoneNumber');
+        return false;
       }
-      final Uri whatsappUri = Uri.parse(
-        'https://wa.me/$cleanNumber?text=${Uri.encodeComponent(message)}',
+
+      final launched = await _launchWhatsAppMessage(
+        normalizedNumber: cleanNumber,
+        message: message,
       );
-      if (await canLaunchUrl(whatsappUri)) {
-        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+
+      if (launched) {
         debugPrint('✅ Simple WhatsApp message sent to $contactName ($phoneNumber)');
         return true;
       } else {
-        debugPrint('❌ WhatsApp not installed');
+        debugPrint('❌ Could not open WhatsApp for $contactName');
         return false;
       }
     } catch (e) {
@@ -153,8 +229,13 @@ Location coordinates: ${alert.latitude}, ${alert.longitude}
   /// Check if WhatsApp is installed
   static Future<bool> isWhatsAppInstalled() async {
     try {
-      final Uri testUri = Uri.parse('https://wa.me/');
-      return await canLaunchUrl(testUri);
+      final Uri nativeUri = Uri.parse('whatsapp://send');
+      if (await canLaunchUrl(nativeUri)) {
+        return true;
+      }
+
+      final Uri webUri = Uri.parse('https://wa.me/');
+      return await canLaunchUrl(webUri);
     } catch (e) {
       return false;
     }
@@ -189,21 +270,18 @@ This link will show my location updates every few seconds.
 
       bool anySent = false;
       for (final contact in contacts) {
-        // Clean phone number
-        String cleanNumber = contact.phone.replaceAll(RegExp(r'[^0-9+]'), '');
-        
-        // Add country code if not present (assuming India +91)
-        if (!cleanNumber.startsWith('+')) {
-          cleanNumber = '+91$cleanNumber';
+        final cleanNumber = _normalizeWhatsAppNumber(contact.phone);
+        if (cleanNumber.length < 10) {
+          debugPrint('⚠️ Skipping invalid WhatsApp number for ${contact.name}');
+          continue;
         }
 
-        // WhatsApp URL
-        final Uri whatsappUri = Uri.parse(
-          'https://wa.me/$cleanNumber?text=${Uri.encodeComponent(message)}',
+        final launched = await _launchWhatsAppMessage(
+          normalizedNumber: cleanNumber,
+          message: message,
         );
 
-        if (await canLaunchUrl(whatsappUri)) {
-          await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+        if (launched) {
           debugPrint('✅ Live tracking link sent to ${contact.name}');
           anySent = true;
           
@@ -245,19 +323,23 @@ $locationUrl
 
       bool anySent = false;
       for (final contact in contacts) {
-        String cleanNumber = contact.phone.replaceAll(RegExp(r'[^0-9+]'), '');
-        if (!cleanNumber.startsWith('+')) {
-          cleanNumber = '+91$cleanNumber';
+        final cleanNumber = _normalizeWhatsAppNumber(contact.phone);
+        if (cleanNumber.length < 10) {
+          debugPrint('⚠️ Skipping invalid WhatsApp number for ${contact.name}');
+          continue;
         }
 
-        final Uri whatsappUri = Uri.parse(
-          'https://wa.me/$cleanNumber?text=${Uri.encodeComponent(message)}',
+        final launched = await _launchWhatsAppMessage(
+          normalizedNumber: cleanNumber,
+          message: message,
         );
 
-        if (await canLaunchUrl(whatsappUri)) {
-          await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+        if (launched) {
+          debugPrint('✅ Location snapshot sent to ${contact.name}');
           anySent = true;
           await Future.delayed(const Duration(seconds: 2));
+        } else {
+          debugPrint('⚠️ Could not open WhatsApp for ${contact.name}');
         }
       }
 

@@ -46,7 +46,7 @@ class GlobalSOSManager {
           debugPrint('🗣️ Global voice distress trigger: score=$score text="$transcript"');
           await _handleGlobalTrigger('VOICE');
         };
-        await DistressVoiceAnalysisService.startAnalysis();
+        await DistressVoiceAnalysisService.startAnalysis(emergencyMode: true);
       }
     }
 

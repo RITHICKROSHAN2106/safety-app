@@ -18,11 +18,10 @@ class VoiceActivationService {
   // Keywords that trigger SOS
   static final List<String> _keywords = [
     'help me',
-    'help',
     'emergency',
-    'sos',
     'danger',
-    'save me',
+    'rescue',
+    'need help',
   ];
   static List<String> _activeKeywords = List<String>.from(_keywords);
 

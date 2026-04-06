@@ -73,7 +73,7 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
         disabledReason: voiceDistressDisabledReason,
       ),
       _FeatureReadiness(
-        title: 'AI Danger Prediction',
+        title: 'ML Danger Prediction',
         isEnabled: aiDangerEnabled,
         disabledReason: aiDangerDisabledReason,
       ),
@@ -207,10 +207,10 @@ class RevolutionaryFeaturesScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Feature 8: AI Danger Prediction
+          // Feature 8: ML Danger Prediction
           _ClassicFeatureCard(
             icon: Icons.psychology,
-            title: 'AI Danger Prediction',
+            title: 'ML Danger Prediction',
             description: 'ML-powered danger zone detection and safe routes',
             color: Colors.deepOrange,
             isEnabled: aiDangerEnabled,
@@ -1368,13 +1368,48 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
   double _distressScore = 0;
   List<String> _detectedKeywords = [];
   String _lastText = '';
+  late final TextEditingController _keywordController;
   StreamSubscription<Map<String, dynamic>>? _analysisSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _keywordController = TextEditingController(
+      text: DistressVoiceAnalysisService.distressKeywords.join(', '),
+    );
+  }
 
   @override
   void dispose() {
     _analysisSubscription?.cancel();
     DistressVoiceAnalysisService.stopAnalysis();
+    _keywordController.dispose();
     super.dispose();
+  }
+
+  void _applyCustomKeywords() {
+    final values = _keywordController.text
+        .split(RegExp(r'[\n,]'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+
+    DistressVoiceAnalysisService.updateDistressKeywords(values, includeDefaults: true);
+    setState(() {});
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Voice distress keywords updated')),
+    );
+  }
+
+  void _resetKeywords() {
+    DistressVoiceAnalysisService.resetDistressKeywords();
+    _keywordController.text = DistressVoiceAnalysisService.distressKeywords.join(', ');
+    setState(() {});
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Voice distress keywords reset to defaults')),
+    );
   }
 
   Future<List<Guardian>> _loadGuardians(String userId) async {
@@ -1480,7 +1515,9 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
     }
 
     DistressVoiceAnalysisService.onAutoSOSRequested = _handleAutoSOS;
-    final stream = await DistressVoiceAnalysisService.startAnalysis();
+    final stream = await DistressVoiceAnalysisService.startAnalysis(
+      emergencyMode: false,
+    );
 
     setState(() => _isAnalyzing = true);
 
@@ -1623,6 +1660,35 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
                           .map((keyword) => Chip(label: Text(keyword), backgroundColor: Colors.grey.shade200))
                           .toList(),
                     ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _keywordController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Add custom keywords or phrases',
+                        hintText: 'example: follow me, leave me, help',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _applyCustomKeywords,
+                            icon: const Icon(Icons.tune),
+                            label: const Text('Apply Keywords'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        OutlinedButton.icon(
+                          onPressed: _resetKeywords,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Reset'),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -1634,7 +1700,7 @@ class _VoiceDistressScreenState extends State<VoiceDistressScreen> {
   }
 }
 
-/// FEATURE 8: AI Danger Prediction Map Screen
+/// FEATURE 8: ML Danger Prediction Map Screen
 class AIDangerMapScreen extends StatefulWidget {
   const AIDangerMapScreen({super.key});
 
@@ -1648,7 +1714,6 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
   Map<String, dynamic>? _prediction;
   Map<String, dynamic>? _cityInsights;
   String? _errorMessage;
-  String _selectedCity = 'Coimbatore';
 
   Future<void> _openSafeRoutes() async {
     final routeOptions = _cityInsights?['saferOptions'] as List<dynamic>?;
@@ -1719,7 +1784,7 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
       if (!mounted) return;
       setState(() {
         _isInitialized = true;
-        _errorMessage = 'Failed to initialize AI danger prediction: $e';
+        _errorMessage = 'Failed to initialize ML danger prediction: $e';
       });
     }
   }
@@ -1742,7 +1807,7 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
         permission == LocationPermission.deniedForever) {
       setState(() {
         _errorMessage =
-            'Location permission denied. Allow location to see AI danger prediction.';
+            'Location permission denied. Allow location to see ML danger prediction.';
       });
       return false;
     }
@@ -1776,7 +1841,6 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
       );
 
       final cityInsights = await AIDangerPredictionService.getCitySafetyInsights(
-        city: _selectedCity,
         start: position,
       );
 
@@ -1817,7 +1881,7 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🤖 AI Danger Prediction'),
+        title: const Text('🤖 ML Danger Prediction'),
         backgroundColor: Colors.deepOrange,
         actions: [
           IconButton(
@@ -1863,22 +1927,18 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                   text: 'ML-powered danger zone detection with safe route recommendations.',
                 ),
                 const SizedBox(height: 24),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCity,
-                  decoration: const InputDecoration(
-                    labelText: 'Safety Dataset City',
-                    border: OutlineInputBorder(),
+                if (_cityInsights != null)
+                  Card(
+                    color: Colors.blue.shade50,
+                    child: ListTile(
+                      leading: const Icon(Icons.my_location, color: Colors.blueAccent),
+                      title: Text('GPS-detected city dataset: ${_cityInsights!['city']}'),
+                      subtitle: const Text(
+                        'City is selected automatically from your current location.',
+                      ),
+                    ),
                   ),
-                  items: AIDangerPredictionService.supportedCities
-                      .map((city) => DropdownMenuItem(value: city, child: Text(city)))
-                      .toList(),
-                  onChanged: (value) async {
-                    if (value == null) return;
-                    setState(() => _selectedCity = value);
-                    await _predictCurrentLocation();
-                  },
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Card(
                   color: Colors.blueGrey.withAlpha((255 * 0.12).round()),
                   child: Padding(
@@ -1895,6 +1955,8 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                         Text('Loading: $_isLoadingPrediction'),
                         Text('Has Prediction: ${_prediction != null}'),
                         Text('Has City Insights: ${_cityInsights != null}'),
+                        if (_cityInsights != null)
+                          Text('Detected City: ${_cityInsights!['city']}'),
                         if (_errorMessage != null)
                           Text('Error: $_errorMessage', style: const TextStyle(color: Colors.redAccent)),
                       ],
@@ -1976,12 +2038,33 @@ class _AIDangerMapScreenState extends State<AIDangerMapScreen> {
                           ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 12),
+                    if (_cityInsights!['routeRecommendation'] != null)
+                      Card(
+                        color: Colors.green.shade50,
+                        child: ListTile(
+                          leading: const Icon(Icons.route, color: Colors.green),
+                          title: Text(
+                            'Recommended: ${_cityInsights!['routeRecommendation']['name']}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            '${_cityInsights!['routeRecommendation']['description']}\n'
+                            'Danger score: ${(_cityInsights!['routeRecommendation']['dangerScore'] as num).toStringAsFixed(1)}/10 • '
+                            'Distance: ${(_cityInsights!['routeRecommendation']['distanceKm'] as num).toStringAsFixed(2)} km',
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
                     ...(_cityInsights!['saferOptions'] as List<dynamic>).map(
                       (option) => Card(
                         child: ListTile(
                           leading: const Icon(Icons.route, color: Colors.green),
                           title: Text('${option['name']} (Score ${option['safetyScore']}/10)'),
-                          subtitle: Text(option['description'] as String),
+                          subtitle: Text(
+                            '${option['description']}\n'
+                            'Danger score: ${option['routeDangerScore'] as num? ?? 0}/10 • '
+                            'Distance: ${((option['routeDistanceKm'] as num?) ?? 0).toStringAsFixed(2)} km',
+                          ),
                         ),
                       ),
                     ),

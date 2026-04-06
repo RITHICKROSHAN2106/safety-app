@@ -21,11 +21,10 @@ class BackendSmsService {
       final message = _buildSOSMessage(alert, userName);
       debugPrint('📧 Message: $message');
 
-      // Extract phone numbers
-      final List<String> recipients = contacts
-          .map((contact) => contact.phone)
-          .where((phone) => phone.isNotEmpty)
-          .toList();
+      // Extract phone numbers and split accidental merged fields like "a;b" or "a,b".
+      final List<String> recipients = _extractDistinctPhoneNumbers(
+        contacts.map((contact) => contact.phone),
+      );
 
       if (recipients.isEmpty) {
         debugPrint('❌ No emergency contacts found');
@@ -79,30 +78,38 @@ class BackendSmsService {
         return false;
       }
 
-      final response = await http.post(
-        Uri.parse('$backendUrl/api/sms/send-sos'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${Config.backendApiKey}',
-        },
-        body: jsonEncode({
-          'recipients': recipients,
-          'message': message,
-          'latitude': alert.latitude,
-          'longitude': alert.longitude,
-          'timestamp': alert.timestamp.toIso8601String(),
-          'urgent': true,
-        }),
-      ).timeout(const Duration(seconds: 10));
+      var successCount = 0;
+      for (final recipient in recipients) {
+        final response = await http.post(
+          Uri.parse('$backendUrl/api/sms/send-sos'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${Config.backendApiKey}',
+          },
+          body: jsonEncode({
+            'recipient': recipient,
+            'recipients': [recipient],
+            'message': message,
+            'latitude': alert.latitude,
+            'longitude': alert.longitude,
+            'timestamp': alert.timestamp.toIso8601String(),
+            'urgent': true,
+          }),
+        ).timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        debugPrint('✅ Backend SMS response: ${data['message']}');
-        return data['success'] == true;
-      } else {
-        debugPrint('❌ Backend SMS failed: ${response.statusCode}');
-        return false;
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data['success'] == true) {
+            successCount++;
+          } else {
+            debugPrint('❌ Backend SMS failed for $recipient: ${data['message']}');
+          }
+        } else {
+          debugPrint('❌ Backend SMS failed for $recipient: ${response.statusCode}');
+        }
       }
+
+      return successCount > 0;
     } catch (e) {
       debugPrint('❌ Backend SMS error: $e');
       return false;
@@ -141,49 +148,48 @@ class BackendSmsService {
         return false;
       }
 
-      final numbersString = cleanNumbers.join(',');
       final shortMessage = message.length > 160 ? message.substring(0, 160) : message;
       
-      debugPrint('📤 Numbers: $numbersString');
+      debugPrint('📤 Recipients: $cleanNumbers');
       debugPrint('📤 Message length: ${shortMessage.length}');
 
-      // Try GET method (more reliable than POST)
-      final url = Uri.parse(
-        'https://www.fast2sms.com/dev/bulkV2'
-        '?authorization=$apiKey'
-        '&route=q'
-        '&sender_id=FSTSMS'
-        '&message=${Uri.encodeComponent(shortMessage)}'
-        '&language=english'
-        '&flash=0'
-        '&numbers=$numbersString'
-      );
+      var successCount = 0;
+      for (final number in cleanNumbers) {
+        final url = Uri.parse(
+          'https://www.fast2sms.com/dev/bulkV2'
+          '?authorization=$apiKey'
+          '&route=q'
+          '&sender_id=FSTSMS'
+          '&message=${Uri.encodeComponent(shortMessage)}'
+          '&language=english'
+          '&flash=0'
+          '&numbers=$number'
+        );
 
-      debugPrint('🌐 Calling Fast2SMS GET API...');
-      final response = await http.get(
-        url,
-        headers: {
-          'authorization': apiKey,
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
+        debugPrint('🌐 Calling Fast2SMS GET API for $number...');
+        final response = await http.get(
+          url,
+          headers: {
+            'authorization': apiKey,
+            'Accept': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 15));
 
-      debugPrint('📥 Status: ${response.statusCode}');
-      debugPrint('📥 Response: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+        debugPrint('📥 Status ($number): ${response.statusCode}');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['return'] == true) {
-          debugPrint('✅ Fast2SMS SUCCESS! Sent to ${cleanNumbers.length} numbers');
-          return true;
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data['return'] == true) {
+            successCount++;
+          } else {
+            debugPrint('❌ Fast2SMS failed for $number: ${data['message'] ?? "Unknown error"}');
+          }
         } else {
-          debugPrint('❌ Fast2SMS returned: ${data['message'] ?? "Unknown error"}');
-          return false;
+          debugPrint('❌ Fast2SMS HTTP ${response.statusCode} for $number');
         }
-      } else {
-        debugPrint('❌ HTTP ${response.statusCode}: ${response.body}');
-        return false;
       }
+
+      return successCount > 0;
     } catch (e) {
       debugPrint('❌ Exception: $e');
       return false;
@@ -259,5 +265,69 @@ class BackendSmsService {
 No response? Call 112
 
 Women Safety App''';
+  }
+
+  static String _normalizePhoneNumber(String phoneNumber) {
+    return phoneNumber.trim().replaceAll(RegExp(r'\D'), '');
+  }
+
+  static List<String> _extractDistinctPhoneNumbers(Iterable<String> rawPhones) {
+    final numbers = <String>{};
+
+    for (final raw in rawPhones) {
+      final value = raw.trim();
+      if (value.isEmpty) {
+        continue;
+      }
+
+      final splitCandidates = value
+          .split(RegExp(r'[;,\n\r\t ]+'))
+          .where((part) => part.trim().isNotEmpty)
+          .toList();
+
+      final candidates = splitCandidates.isEmpty ? <String>[value] : splitCandidates;
+      for (final candidate in candidates) {
+        final normalized = _normalizePhoneNumber(candidate);
+        for (final expanded in _expandMergedCandidates(normalized)) {
+          if (expanded.isNotEmpty) {
+            numbers.add(expanded);
+          }
+        }
+      }
+    }
+
+    return numbers.toList(growable: false);
+  }
+
+  static List<String> _expandMergedCandidates(String digitsOnlyPhone) {
+    if (digitsOnlyPhone.isEmpty) {
+      return const <String>[];
+    }
+
+    final len = digitsOnlyPhone.length;
+
+    if (len == 10 || (len == 12 && digitsOnlyPhone.startsWith('91'))) {
+      return <String>[digitsOnlyPhone];
+    }
+
+    if (len > 12) {
+      if (len % 12 == 0 && digitsOnlyPhone.startsWith('91')) {
+        final parts = <String>[];
+        for (var i = 0; i < len; i += 12) {
+          parts.add(digitsOnlyPhone.substring(i, i + 12));
+        }
+        return parts;
+      }
+
+      if (len % 10 == 0) {
+        final parts = <String>[];
+        for (var i = 0; i < len; i += 10) {
+          parts.add(digitsOnlyPhone.substring(i, i + 10));
+        }
+        return parts;
+      }
+    }
+
+    return <String>[digitsOnlyPhone];
   }
 }
