@@ -34,8 +34,7 @@ class WomenSafetyApp extends StatelessWidget {
           themeMode: mode,
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
-            initialRoute:
-              launchFromWidgetPanic ? SosScreen.routeName : SplashScreen.routeName,
+              initialRoute: SplashScreen.routeName,
           routes: {
             SplashScreen.routeName: (_) => const SplashScreen(),
             LoginScreen.routeName: (_) => const LoginScreen(),

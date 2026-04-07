@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 class AlarmService {
   static bool _isPlaying = false;
   static Timer? _autoStopTimer;
+  static Timer? _fallbackPulseTimer;
   static final AudioPlayer _audioPlayer = AudioPlayer();
 
   /// Starts the looping alarm sound. Optionally stops automatically after [autoStopAfter].
@@ -25,16 +26,13 @@ class AlarmService {
       await _audioPlayer.setVolume(1.0);
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       
-      // Play a default notification sound or custom alarm
-      // Note: You can add a custom alarm.mp3 to assets/sounds/ if needed
+      // Play custom alarm if available.
       try {
-        // Try to play system alarm sound
         await _audioPlayer.play(AssetSource('sounds/alarm.mp3'));
+        _stopFallbackPattern();
       } catch (e) {
-        // Fallback: Use a simple beep pattern
-        debugPrint('⚠️ Custom alarm not found, using notification sound');
-        // For now, we'll just vibrate/make noise via system
-        HapticFeedback.vibrate();
+        debugPrint('⚠️ Custom alarm missing/unavailable, switching to fallback siren pattern');
+        _startFallbackPattern();
       }
       
       _isPlaying = true;
@@ -56,6 +54,7 @@ class AlarmService {
   static Future<void> stopAlarm() async {
     _autoStopTimer?.cancel();
     _autoStopTimer = null;
+    _stopFallbackPattern();
 
     if (!_isPlaying) {
       debugPrint('ℹ️ Alarm not playing, nothing to stop');
@@ -86,9 +85,30 @@ class AlarmService {
   }
 
   static bool get isPlaying => _isPlaying;
+
+  static void _startFallbackPattern() {
+    _fallbackPulseTimer?.cancel();
+    _fallbackPulseTimer = Timer.periodic(const Duration(milliseconds: 1100), (
+      timer,
+    ) async {
+      try {
+        await SystemSound.play(SystemSoundType.alert);
+      } catch (_) {
+        // Best-effort fallback on platforms where SystemSound alert is unsupported.
+      }
+      HapticFeedback.heavyImpact();
+    });
+    HapticFeedback.heavyImpact();
+  }
+
+  static void _stopFallbackPattern() {
+    _fallbackPulseTimer?.cancel();
+    _fallbackPulseTimer = null;
+  }
   
   /// Dispose resources when no longer needed
   static void dispose() {
+    _stopFallbackPattern();
     _audioPlayer.dispose();
   }
 }

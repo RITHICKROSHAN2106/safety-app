@@ -18,11 +18,13 @@ class CallEscalationService {
   static Timer? _retryTimer;
   static int _currentAttempt = 0;
   static int _currentGuardianIndex = 0;
+  static Completer<void>? _escalationCompleter;
 
   static int maxAttemptsPerGuardian = 3;
   static Duration retryInterval = const Duration(seconds: 5);
   static Duration callOutcomeTimeout = const Duration(seconds: 45);
-  static Duration answeredDurationThreshold = const Duration(seconds: 15);
+  // Keep this conservative to avoid treating long ringing/no-answer as answered.
+  static Duration answeredDurationThreshold = const Duration(seconds: 45);
   static CallAttemptHandler _callAttemptHandler = CallService.makeCall;
   static CallAttemptHandler _emergencyCallHandler =
       (number) => CallService.callEmergencyServices(emergencyNumber: number);
@@ -35,7 +37,7 @@ class CallEscalationService {
   }) async {
     if (_isEscalating) {
       debugPrint('⚠️ Escalation already in progress');
-      return;
+      return _escalationCompleter?.future ?? Future<void>.value();
     }
 
     if (guardians.isEmpty) {
@@ -46,6 +48,7 @@ class CallEscalationService {
     _isEscalating = true;
     _currentAttempt = 0;
     _currentGuardianIndex = 0;
+    _escalationCompleter = Completer<void>();
 
     final callSequence = _buildCallSequence(guardians);
     if (callSequence.isEmpty) {
@@ -55,12 +58,17 @@ class CallEscalationService {
     }
 
     debugPrint('🔄 Starting call escalation for ${callSequence.length} guardians');
+    debugPrint(
+      '📋 Call sequence: ${callSequence.map((g) => '${g.name}:${g.phone}').join(' -> ')}',
+    );
 
     await _attemptCallWithRetry(
       guardians: callSequence,
       currentGuardian: callSequence.first,
       callEmergencyOnFailure: callEmergencyServicesOnFailure,
     );
+
+    await (_escalationCompleter?.future ?? Future<void>.value());
   }
 
   /// Stop escalation process
@@ -70,6 +78,10 @@ class CallEscalationService {
     _isEscalating = false;
     _currentAttempt = 0;
     _currentGuardianIndex = 0;
+    if (_escalationCompleter != null && !_escalationCompleter!.isCompleted) {
+      _escalationCompleter!.complete();
+    }
+    _escalationCompleter = null;
     debugPrint('🛑 Call escalation stopped');
   }
 
@@ -277,7 +289,7 @@ class CallEscalationService {
     maxAttemptsPerGuardian = 3;
     retryInterval = const Duration(seconds: 5);
     callOutcomeTimeout = const Duration(seconds: 45);
-    answeredDurationThreshold = const Duration(seconds: 15);
+    answeredDurationThreshold = const Duration(seconds: 45);
   }
 
   static List<Guardian> _buildCallSequence(List<Guardian> guardians) {

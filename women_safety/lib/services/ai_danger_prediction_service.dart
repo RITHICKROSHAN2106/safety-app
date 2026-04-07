@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../data/tamil_nadu_safety_datasets.dart';
+
 /// 🤖 AI Danger Prediction - Predict danger zones using ML
 class AIDangerPredictionService {
   static Interpreter? _interpreter;
@@ -13,6 +15,10 @@ class AIDangerPredictionService {
   static const Duration _cacheTtl = Duration(minutes: 5);
   static final Map<String, Map<String, dynamic>> _townSafetyDataset = {};
   static final Map<String, Map<String, double>> _townCenters = {};
+    static final Map<String, Map<String, dynamic>> _districtSafetyDataset =
+      TamilNaduSafetyDatasets.districtRecords;
+    static final Map<String, Map<String, double>> _districtCenters =
+      TamilNaduSafetyDatasets.districtCenters;
   static DateTime? _townDatasetLoadedAt;
   static const Duration _townDatasetCacheTtl = Duration(hours: 6);
   static const String _townDatasetCollection = 'tn_town_safety_datasets';
@@ -395,7 +401,7 @@ class AIDangerPredictionService {
     },
   };
 
-  static const Map<String, Map<String, double>> _cityCenters = {
+  static final Map<String, Map<String, double>> _cityCenters = {
     'coimbatore': {'latitude': 11.0168, 'longitude': 76.9558},
     'chennai': {'latitude': 13.0827, 'longitude': 80.2707},
     'bengaluru': {'latitude': 12.9716, 'longitude': 77.5946},
@@ -406,6 +412,7 @@ class AIDangerPredictionService {
     'tiruppur': {'latitude': 11.1085, 'longitude': 77.3411},
     'vellore': {'latitude': 12.9165, 'longitude': 79.1325},
     'tirunelveli': {'latitude': 8.7139, 'longitude': 77.7567},
+    ..._districtCenters,
   };
 
   static const List<Map<String, String>> _defaultGovernmentSources = [
@@ -575,6 +582,7 @@ class AIDangerPredictionService {
       
       // Run prediction if model loaded
       double dangerScore;
+      final predictionEngine = _interpreter != null ? 'ml' : 'rule-based';
       if (_interpreter != null) {
         dangerScore = await _runMLPrediction(features);
       } else {
@@ -585,9 +593,11 @@ class AIDangerPredictionService {
       // Get danger zone details from dynamic DB zones and curated city hotspots.
       final dbZoneDetails = await _getDangerZoneDetails(position);
       final curatedHotspotDetails = await _getCuratedDangerHotspot(position);
+      final districtProfile = await _getDistrictSafetyProfile(position);
 
       // Curated hotspot risk should raise score when user is near known dangerous pockets.
       dangerScore = _applyCuratedRiskBoost(dangerScore, curatedHotspotDetails);
+      dangerScore = _applyDistrictRiskBoost(dangerScore, districtProfile);
       final zoneDetails = _mergeZoneDetails(dbZoneDetails, curatedHotspotDetails);
 
       final result = {
@@ -595,7 +605,10 @@ class AIDangerPredictionService {
         'level': _getDangerLevel(dangerScore),
         'factors': features,
         'zoneDetails': zoneDetails,
+        'districtProfile': districtProfile,
         'recommendations': _getRecommendations(dangerScore, time),
+        'predictionEngine': predictionEngine,
+        'modelLoaded': _interpreter != null,
         'cached': false,
         'cachedAtEpochMs': now.millisecondsSinceEpoch,
       };
@@ -609,6 +622,9 @@ class AIDangerPredictionService {
       return {
         'dangerScore': 5.0,
         'level': 'MEDIUM',
+        'districtProfile': await _getDistrictSafetyProfile(position),
+        'predictionEngine': 'rule-based',
+        'modelLoaded': _interpreter != null,
         'error': e.toString(),
       };
     }
@@ -997,6 +1013,7 @@ class AIDangerPredictionService {
     Position? destination,
   }) async {
     await _ensureTownDatasetsLoaded();
+    final time = DateTime.now();
     final datasets = _allSafetyDatasets();
 
     final normalizedCity = (city == null || city.trim().isEmpty)
@@ -1041,18 +1058,58 @@ class AIDangerPredictionService {
         .toList()
       ..sort((a, b) => (a['distanceKm'] as double).compareTo(b['distanceKm'] as double));
 
-    final end = destination ?? Position(
-      longitude: start.longitude + 0.015,
-      latitude: start.latitude + 0.015,
-      timestamp: DateTime.now(),
-      accuracy: 5,
-      altitude: 0,
-      heading: 0,
-      speed: 0,
-      speedAccuracy: 0,
-      altitudeAccuracy: 0,
-      headingAccuracy: 0,
+    final emergencyContacts = (data['emergencyContacts'] as List?)
+            ?.whereType<Map>()
+            .map((entry) => entry.map((key, value) => MapEntry('$key', value)))
+            .toList(growable: false) ??
+        const <Map<String, dynamic>>[];
+
+    final nearestBooth = nearbyPolice.firstWhere(
+      (station) => ((station['type'] ?? '').toString().toLowerCase()).contains('booth'),
+      orElse: () => nearbyPolice.isNotEmpty
+          ? nearbyPolice.first
+          : <String, dynamic>{
+              'name': 'Nearest police support point unavailable',
+              'type': 'Support',
+              'contact': '+91 100',
+              'distanceKm': 0.0,
+            },
     );
+
+    final nearestRiskPocket = riskyAreas.isNotEmpty
+        ? riskyAreas.first
+        : <String, dynamic>{
+            'name': 'No high-risk pocket identified nearby',
+            'risk': 'LOW',
+            'distanceKm': 0.0,
+            'reason': 'Curated dataset does not flag a nearby hotspot for this point.',
+          };
+
+    final end = destination ?? (nearbyPolice.isNotEmpty
+        ? Position(
+            latitude: (nearbyPolice.first['latitude'] as num).toDouble(),
+            longitude: (nearbyPolice.first['longitude'] as num).toDouble(),
+            timestamp: time,
+            accuracy: 5,
+            altitude: 0,
+            heading: 0,
+            speed: 0,
+            speedAccuracy: 0,
+            altitudeAccuracy: 0,
+            headingAccuracy: 0,
+          )
+        : Position(
+            longitude: start.longitude + 0.005,
+            latitude: start.latitude + 0.005,
+            timestamp: time,
+            accuracy: 5,
+            altitude: 0,
+            heading: 0,
+            speed: 0,
+            speedAccuracy: 0,
+            altitudeAccuracy: 0,
+            headingAccuracy: 0,
+          ));
 
     final routeRecommendation = await getRecommendedSafeRoute(
       start: start,
@@ -1081,6 +1138,14 @@ class AIDangerPredictionService {
       'riskyAreas': riskyAreas,
       'nearbyPolice': nearbyPolice.take(5).toList(),
       'saferOptions': saferOptions,
+      'preRouteSafetyBrief': {
+        'nearestPoliceSupport': nearestBooth,
+        'nearestRiskPocket': nearestRiskPocket,
+        'recommendedContact': emergencyContacts.isNotEmpty
+            ? emergencyContacts.first
+            : <String, dynamic>{'name': 'ERSS', 'contact': '+91 112', 'type': 'Emergency Response'},
+      },
+      'emergencyContacts': emergencyContacts,
       'routeRecommendation': {
         'name': routeRecommendation['bestRouteName'],
         'description': routeRecommendation['bestRouteDescription'],
@@ -1262,6 +1327,7 @@ class AIDangerPredictionService {
   static Map<String, Map<String, dynamic>> _allSafetyDatasets() {
     return {
       ..._citySafetyDataset,
+      ..._districtSafetyDataset,
       ..._townSafetyDataset,
     };
   }
@@ -1409,6 +1475,53 @@ class AIDangerPredictionService {
     return nearestCity;
   }
 
+  static Future<Map<String, dynamic>?> _getDistrictSafetyProfile(Position position) async {
+    final nearestDistrict = await _resolveNearestCityName(position);
+    final district = _allSafetyDatasets()[nearestDistrict];
+    if (district == null) {
+      return null;
+    }
+
+    final center = _cityCenters[nearestDistrict];
+    final distanceKm = center == null
+        ? null
+        : _distanceKm(
+            position.latitude,
+            position.longitude,
+            center['latitude']!,
+            center['longitude']!,
+          );
+
+    return {
+      'district': district['district'] ?? _toTitleCase(nearestDistrict),
+      'hub': district['hub'] ?? _toTitleCase(nearestDistrict),
+      'riskBias': district['riskBias'] ?? 0,
+      'coverageScore': district['coverageScore'] ?? 0,
+      'reportNote': district['reportNote'] ?? 'Curated district safety snapshot',
+      'lastReviewedOn': district['lastReviewedOn'] ?? '2026-04-06',
+      'distanceKm': distanceKm,
+      'source': 'Tamil Nadu district safety registry',
+    };
+  }
+
+  static double _applyDistrictRiskBoost(
+    double baseScore,
+    Map<String, dynamic>? districtProfile,
+  ) {
+    if (districtProfile == null) {
+      return baseScore;
+    }
+
+    final riskBias = _toDouble(districtProfile['riskBias']) ?? 0.0;
+    final coverageScore = _toDouble(districtProfile['coverageScore']) ?? 0.0;
+    final distanceKm = _toDouble(districtProfile['distanceKm']) ?? 0.0;
+
+    final districtPressure = (riskBias * 1.15) - (coverageScore * 0.35);
+    final proximityPenalty = distanceKm <= 20 ? 0.2 : 0.0;
+
+    return (baseScore + districtPressure + proximityPenalty).clamp(0.0, 10.0);
+  }
+
   static Future<Map<String, dynamic>> _getCuratedDangerHotspot(Position position) async {
     final nearestCity = await _resolveNearestCityName(position);
     final cityData = _allSafetyDatasets()[nearestCity];
@@ -1519,3 +1632,4 @@ class AIDangerPredictionService {
     };
   }
 }
+

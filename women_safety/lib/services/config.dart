@@ -58,6 +58,12 @@ class Config {
     defaultValue: '',
   );
 
+  // Google Maps Directions API key (used for ride expected-route polyline)
+  static const String googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: '',
+  );
+
   // SMS Gateway API Keys (for automatic SMS sending)
   
   // Fast2SMS (India only) - Get free API key: https://www.fast2sms.com/

@@ -39,7 +39,9 @@ class SOSService {
       debugPrint('🚨 Trigger Type: $triggerType');
       debugPrint('🚨 User: ${user.name}');
       debugPrint('🚨 Emergency Contacts: ${emergencyContacts.length}');
+      final callContacts = _buildCallRecipients(emergencyContacts);
       final alertContacts = _buildAlertRecipients(emergencyContacts);
+      debugPrint('📞 Call recipients (primary-first): ${callContacts.length}');
       debugPrint('🚨 Alert Recipients (normalized): ${alertContacts.length}');
       
       // STEP 1: Get current location
@@ -194,10 +196,13 @@ class SOSService {
       }
 
       // STEP 5: Make call to primary contact with smart escalation
-      if (makeCall && alertContacts.isNotEmpty) {
+      if (makeCall && callContacts.isNotEmpty) {
         debugPrint('\n📞 STEP 5: Starting smart call escalation...');
-        CallEscalationService.startEscalation(
-          guardians: alertContacts,
+        debugPrint(
+          '📞 Guardians selected for call: ${callContacts.map((g) => '${g.name}:${g.phone}').join(', ')}',
+        );
+        await CallEscalationService.startEscalation(
+          guardians: callContacts,
           callEmergencyServicesOnFailure: true,
         );
       } else {
@@ -420,6 +425,23 @@ Please contact me immediately!
 
     final recipients = <String, Guardian>{};
     for (final guardian in source) {
+      final phones = _extractPhoneNumbers(guardian.phone);
+      for (final phone in phones) {
+        recipients[phone] = guardian.copyWith(phone: phone);
+      }
+    }
+
+    return recipients.values.toList(growable: false);
+  }
+
+  static List<Guardian> _buildCallRecipients(List<Guardian> guardians) {
+    final ordered = <Guardian>[
+      ...guardians.where((g) => g.isPrimary),
+      ...guardians.where((g) => !g.isPrimary),
+    ];
+
+    final recipients = <String, Guardian>{};
+    for (final guardian in ordered) {
       final phones = _extractPhoneNumbers(guardian.phone);
       for (final phone in phones) {
         recipients[phone] = guardian.copyWith(phone: phone);
