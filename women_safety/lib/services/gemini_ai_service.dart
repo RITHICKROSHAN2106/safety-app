@@ -34,9 +34,9 @@ class GeminiAiService {
     final backendUrl = Config.backendUrl.trim();
     final backendApiKey = Config.backendApiKey.trim();
 
-    if (backendUrl.isEmpty || backendApiKey.isEmpty) {
+    if (backendUrl.isEmpty) {
       return const GeminiAssistantReply(
-        reply: 'Gemini is not configured yet. Set BACKEND_URL, BACKEND_API_KEY, and GEMINI_API_KEY to enable the assistant.',
+        reply: 'Gemini is not configured yet. Set BACKEND_URL in the app and GEMINI_API_KEY on the backend to enable the assistant.',
         model: 'unconfigured',
         safetySensitive: true,
         escalationRecommended: false,
@@ -48,13 +48,17 @@ class GeminiAiService {
       );
     }
 
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    if (backendApiKey.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $backendApiKey';
+    }
+
     final response = await http
         .post(
           Uri.parse('$backendUrl/api/v1/ai/chat'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $backendApiKey',
-          },
+          headers: headers,
           body: jsonEncode({
             'message': message,
             'context': context,

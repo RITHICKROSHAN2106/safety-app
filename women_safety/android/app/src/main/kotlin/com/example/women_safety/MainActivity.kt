@@ -9,8 +9,10 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.telephony.SmsManager
+import android.telephony.SubscriptionManager
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
+import android.util.Log
 import android.telephony.PhoneStateListener
 import androidx.core.app.ActivityCompat
 import io.flutter.embedding.engine.FlutterEngine
@@ -19,6 +21,10 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+	companion object {
+		private const val TAG = "WomenSafetySMS"
+	}
+
 	private val smsChannel = "women_safety/sms"
 	private val callChannel = "women_safety/call"
 	private val callStateChannel = "women_safety/call_state"
@@ -69,7 +75,7 @@ class MainActivity : FlutterActivity() {
 				}
 
 				try {
-					val smsManager = SmsManager.getDefault()
+					val smsManager = resolveSmsManager()
 
 						if (call.method == "sendDirectSms") {
 							val phone = call.argument<String>("phone")?.trim().orEmpty()
@@ -78,8 +84,14 @@ class MainActivity : FlutterActivity() {
 								return@setMethodCallHandler
 							}
 
+							val destination = normalizePhoneNumber(phone)
+							if (destination.isEmpty()) {
+								result.error("INVALID_ARGS", "Invalid phone format", null)
+								return@setMethodCallHandler
+							}
+
 							val messageParts = smsManager.divideMessage(message)
-							smsManager.sendMultipartTextMessage(phone, null, messageParts, null, null)
+							smsManager.sendMultipartTextMessage(destination, null, messageParts, null, null)
 							result.success(1)
 							return@setMethodCallHandler
 						}
@@ -93,13 +105,24 @@ class MainActivity : FlutterActivity() {
 						var successCount = 0
 						for (phone in phones) {
 							if (phone.isBlank()) continue
-							val messageParts = smsManager.divideMessage(message)
-							smsManager.sendMultipartTextMessage(phone.trim(), null, messageParts, null, null)
-							successCount++
+							val destination = normalizePhoneNumber(phone)
+							if (destination.isEmpty()) {
+								Log.w(TAG, "Skipping invalid phone: $phone")
+								continue
+							}
+
+							try {
+								val messageParts = smsManager.divideMessage(message)
+								smsManager.sendMultipartTextMessage(destination, null, messageParts, null, null)
+								successCount++
+							} catch (e: Exception) {
+								Log.e(TAG, "Failed to send SMS to $destination", e)
+							}
 						}
 
 						result.success(successCount)
 				} catch (e: Exception) {
+					Log.e(TAG, "SMS send failed", e)
 					result.error("SEND_FAILED", e.message, null)
 				}
 			}
@@ -136,6 +159,34 @@ class MainActivity : FlutterActivity() {
 					result.error("CALL_FAILED", e.message, null)
 				}
 			}
+	}
+
+	private fun resolveSmsManager(): SmsManager {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+			val subId = SubscriptionManager.getDefaultSmsSubscriptionId()
+			if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+				return SmsManager.getSmsManagerForSubscriptionId(subId)
+			}
+		}
+		return SmsManager.getDefault()
+	}
+
+	private fun normalizePhoneNumber(raw: String): String {
+		val trimmed = raw.trim()
+		if (trimmed.isEmpty()) {
+			return ""
+		}
+
+		if (trimmed.startsWith("+")) {
+			val cleaned = "+" + trimmed.substring(1).replace(Regex("\\D"), "")
+			return cleaned
+		}
+
+		val digitsOnly = trimmed.replace(Regex("\\D"), "")
+		if (digitsOnly.length == 12 && digitsOnly.startsWith("91")) {
+			return "+$digitsOnly"
+		}
+		return digitsOnly
 	}
 
 	private fun registerCallStateListener() {

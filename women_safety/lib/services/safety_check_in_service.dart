@@ -32,6 +32,7 @@ class SafetyCheckInService {
   static int _graceRemainingSeconds = 0;
   static bool _awaitingConfirmation = false;
   static bool _isActive = false;
+  static bool _tickInProgress = false;
   static Future<void> Function()? _onMissedCheckIn;
 
   static Stream<CheckInState> get updates => _stateController.stream;
@@ -49,6 +50,7 @@ class SafetyCheckInService {
     Future<void> Function()? onMissedCheckIn,
   }) async {
     await stop();
+    await NotificationService.ensureInitialized();
 
     _interval = interval;
     _grace = gracePeriod;
@@ -61,38 +63,50 @@ class SafetyCheckInService {
     _emitState();
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      if (!_isActive) {
-        timer.cancel();
+      if (_tickInProgress) {
         return;
       }
+      _tickInProgress = true;
 
-      if (_awaitingConfirmation) {
-        _graceRemainingSeconds = (_graceRemainingSeconds - 1).clamp(0, 1 << 30);
-        _emitState();
-
-        if (_graceRemainingSeconds <= 0) {
-          debugPrint(
-            '🚨 Safety check-in missed. Triggering escalation callback.',
-          );
-          await stop();
-          await _onMissedCheckIn?.call();
+      try {
+        if (!_isActive) {
+          timer.cancel();
+          return;
         }
-        return;
-      }
 
-      _remainingSeconds = (_remainingSeconds - 1).clamp(0, 1 << 30);
-      _emitState();
+        if (_awaitingConfirmation) {
+          _graceRemainingSeconds =
+              (_graceRemainingSeconds - 1).clamp(0, 1 << 30).toInt();
+          _emitState();
 
-      if (_remainingSeconds <= 0) {
-        _awaitingConfirmation = true;
-        _graceRemainingSeconds = _grace.inSeconds;
+          if (_graceRemainingSeconds <= 0) {
+            debugPrint(
+              '🚨 Safety check-in missed. Triggering escalation callback.',
+            );
+            await stop();
+            await _onMissedCheckIn?.call();
+          }
+          return;
+        }
+
+        _remainingSeconds = (_remainingSeconds - 1).clamp(0, 1 << 30).toInt();
         _emitState();
-        await NotificationService.showNotification(
-          title: 'Safety Check-In',
-          body:
-              'Tap I\'m Safe within ${_grace.inSeconds}s to avoid emergency escalation.',
-          id: 45001,
-        );
+
+        if (_remainingSeconds <= 0) {
+          _awaitingConfirmation = true;
+          _graceRemainingSeconds = _grace.inSeconds;
+          _emitState();
+          await NotificationService.showNotification(
+            title: 'Safety Check-In',
+            body:
+                'Tap I\'m Safe within ${_grace.inSeconds}s to avoid emergency escalation.',
+            id: 45001,
+          );
+        }
+      } catch (e) {
+        debugPrint('❌ Safety check-in timer tick failed: $e');
+      } finally {
+        _tickInProgress = false;
       }
     });
   }
@@ -121,6 +135,7 @@ class SafetyCheckInService {
     _awaitingConfirmation = false;
     _remainingSeconds = 0;
     _graceRemainingSeconds = 0;
+    _tickInProgress = false;
     _emitState();
     await NotificationService.cancelNotification(45001);
   }

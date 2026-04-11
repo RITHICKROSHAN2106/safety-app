@@ -129,8 +129,9 @@ class _GeminiAssistantScreenState extends State<GeminiAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final disabled = !Config.isGeminiAssistantEnabled;
+    final featureDisabled = !Config.isGeminiAssistantEnabled;
     final disabledReason = Config.geminiAssistantDisabledReason;
+    final configWarning = Config.geminiAssistantConfigWarning;
 
     return Scaffold(
       appBar: AppBar(
@@ -165,10 +166,12 @@ class _GeminiAssistantScreenState extends State<GeminiAssistantScreen> {
                         color: Colors.white.withValues(alpha: 0.9),
                       ),
                 ),
-                if (disabled) ...[
+                if (featureDisabled || configWarning != null) ...[
                   const SizedBox(height: 10),
                   Text(
-                    disabledReason ?? 'Enable Gemini with backend config.',
+                    featureDisabled
+                        ? (disabledReason ?? 'Enable Gemini with FEATURE_GEMINI_ASSISTANT.')
+                        : configWarning!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -202,7 +205,9 @@ class _GeminiAssistantScreenState extends State<GeminiAssistantScreen> {
                         .map(
                           (prompt) => ActionChip(
                             label: Text(prompt),
-                            onPressed: disabled || _sending ? null : () => _sendMessage(prompt),
+                            onPressed: featureDisabled || _sending
+                                ? null
+                                : () => _sendMessage(prompt),
                           ),
                         )
                         .toList(),
@@ -252,12 +257,12 @@ class _GeminiAssistantScreenState extends State<GeminiAssistantScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
-                      enabled: !disabled && !_sending,
+                      enabled: !featureDisabled && !_sending,
                       minLines: 1,
                       maxLines: 4,
                       decoration: InputDecoration(
-                        hintText: disabled
-                            ? 'Configure Gemini backend to enable chat'
+                        hintText: featureDisabled
+                            ? 'Enable Gemini feature flag to use chat'
                             : 'Ask Gemini for safety help...',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(18),
@@ -268,7 +273,7 @@ class _GeminiAssistantScreenState extends State<GeminiAssistantScreen> {
                   ),
                   const SizedBox(width: 12),
                   FilledButton(
-                    onPressed: disabled || _sending ? null : _sendMessage,
+                    onPressed: featureDisabled || _sending ? null : _sendMessage,
                     child: _sending
                         ? const SizedBox(
                             width: 20,

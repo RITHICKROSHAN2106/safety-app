@@ -130,8 +130,7 @@ class Config {
   static bool get isFaceRecognitionEnabled => enableFaceRecognition;
   static bool get isVoiceDistressEnabled => enableVoiceDistress;
   static bool get isAIDangerPredictionEnabled => enableAIDangerPrediction;
-  static bool get isGeminiAssistantEnabled =>
-      enableGeminiAssistant && backendUrl.isNotEmpty && backendApiKey.isNotEmpty;
+  static bool get isGeminiAssistantEnabled => enableGeminiAssistant;
 
   static String? get liveStreamingDisabledReason {
     if (!enableLiveStreaming) {
@@ -175,6 +174,10 @@ class Config {
     if (!enableGeminiAssistant) {
       return 'Set FEATURE_GEMINI_ASSISTANT=true via --dart-define';
     }
+    return null;
+  }
+
+  static String? get geminiAssistantConfigWarning {
     if (backendUrl.isEmpty) {
       return 'Configure BACKEND_URL via --dart-define';
     }

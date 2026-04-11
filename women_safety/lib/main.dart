@@ -20,12 +20,17 @@ import 'utils/test_environment.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final isFlutterTest = isTestEnvironment;
+  final initialThemeMode = isFlutterTest
+      ? ThemeMode.system
+      : await ThemeCubit.loadInitialMode();
   final bool launchFromWidget;
 
   if (isFlutterTest) {
     launchFromWidget = false;
   } else {
-    final widgetPanic = await PanicWidgetService.checkPanicTrigger();
+    final widgetPanic = await PanicWidgetService.checkPanicTrigger(
+      clearOnRead: false,
+    );
     final pendingTrigger = await ProtectionService.checkPendingSOS(clearOnRead: false);
     launchFromWidget = widgetPanic != null || pendingTrigger == 'WIDGET';
   }
@@ -48,7 +53,7 @@ Future<void> main() async {
   runApp(
     MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => ThemeCubit()),
+        BlocProvider(create: (_) => ThemeCubit(initialMode: initialThemeMode)),
         BlocProvider(create: (_) => AuthCubit(testMode: isFlutterTest)),
         BlocProvider(
           create: (_) {

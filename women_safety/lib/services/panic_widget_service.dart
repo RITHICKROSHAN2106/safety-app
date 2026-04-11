@@ -94,7 +94,9 @@ class PanicWidgetService {
   }
 
   /// Check if panic was triggered from widget
-  static Future<Map<String, dynamic>?> checkPanicTrigger() async {
+  static Future<Map<String, dynamic>?> checkPanicTrigger({
+    bool clearOnRead = true,
+  }) async {
     try {
       final launchedUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
       if (_isPanicUri(launchedUri)) {
@@ -110,10 +112,12 @@ class PanicWidgetService {
       
       if (wasTriggered) {
         final timestamp = prefs.getInt('panic_timestamp');
-        
-        // Clear the trigger
-        await prefs.remove('panic_triggered');
-        await prefs.remove('panic_timestamp');
+
+        if (clearOnRead) {
+          // Clear the trigger once consumed.
+          await prefs.remove('panic_triggered');
+          await prefs.remove('panic_timestamp');
+        }
         
         return {
           'triggered': true,

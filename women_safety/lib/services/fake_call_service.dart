@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:vibration/vibration.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
+
+import 'alarm_service.dart';
 
 /// 🔐 Fake Call Service - Pretend incoming call to escape dangerous situations
 class FakeCallService {
   static bool _isCallActive = false;
   static Timer? _ringTimer;
-  static final AudioPlayer _audioPlayer = AudioPlayer();
 
   /// Check if fake call is currently active
   static bool get isCallActive => _isCallActive;
@@ -69,11 +69,8 @@ class FakeCallService {
   /// Play ringtone sound
   static Future<void> _playRingtone() async {
     try {
-      // Use system notification sound
-      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-      await _audioPlayer.setVolume(0.8);
-      // You can add custom ringtone here
-      // await _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
+      // Reuse alarm pipeline so fake calls stay audible even without custom assets.
+      await AlarmService.startAlarm();
     } catch (e) {
       debugPrint('❌ Ringtone play error: $e');
     }
@@ -85,7 +82,7 @@ class FakeCallService {
     _ringTimer?.cancel();
     _ringTimer = null;
     await Vibration.cancel();
-    await _audioPlayer.stop();
+    await AlarmService.stopAlarm();
   }
 
   /// Schedule a fake call after a delay (discrete trigger)
@@ -93,13 +90,20 @@ class FakeCallService {
     required Duration delay,
     required BuildContext context,
     String callerName = 'Mom',
+    String callerNumber = '+91 98765 43210',
+    Duration? autoAnswerAfter,
   }) async {
     debugPrint('📅 Fake call scheduled in ${delay.inSeconds}s');
     await Future.delayed(delay);
     if (!context.mounted) {
       return;
     }
-    await triggerFakeCall(context: context, callerName: callerName);
+    await triggerFakeCall(
+      context: context,
+      callerName: callerName,
+      callerNumber: callerNumber,
+      autoAnswerAfter: autoAnswerAfter,
+    );
   }
 
   /// Quick trigger - Volume button long press (3+ seconds)

@@ -11,6 +11,7 @@ import '../repositories/guardian_repository.dart';
 import 'distress_voice_analysis_service.dart';
 import 'notification_service.dart';
 import 'panic_widget_service.dart';
+import 'protection_service.dart';
 import 'shake_detector_service.dart';
 
 /// Coordinates shake and voice triggers with the SOS cubit.
@@ -59,6 +60,16 @@ class GlobalSOSManager {
     if (pendingWidgetTrigger != null) {
       debugPrint('🚨 Processing pending panic widget trigger: $pendingWidgetTrigger');
       await _handleGlobalTrigger('WIDGET');
+      await ProtectionService.clearPendingSOS();
+    }
+
+    final pendingProtectionTrigger = await ProtectionService.checkPendingSOS(
+      clearOnRead: false,
+    );
+    if (pendingProtectionTrigger == 'WIDGET') {
+      debugPrint('🚨 Processing pending protection-service widget trigger.');
+      await _handleGlobalTrigger('WIDGET');
+      await ProtectionService.clearPendingSOS();
     }
 
     _listenersActive = true;

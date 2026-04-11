@@ -486,6 +486,8 @@ class _FakeCallScreenState extends State<FakeCallScreen> {
         delay: Duration(seconds: _delaySeconds),
         context: context,
         callerName: _callerNameController.text,
+        callerNumber: _callerNumberController.text,
+        autoAnswerAfter: _autoAnswer ? const Duration(seconds: 5) : null,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -525,6 +527,8 @@ class _FakeCallScreenState extends State<FakeCallScreen> {
         delay: Duration(seconds: _delaySeconds),
         context: context,
         callerName: _callerNameController.text,
+        callerNumber: _callerNumberController.text,
+        autoAnswerAfter: _autoAnswer ? const Duration(seconds: 5) : null,
       ),
     );
 
@@ -1702,17 +1706,26 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
 
     final guardianId = 'guardian_${DateTime.now().millisecondsSinceEpoch}';
 
-    await FaceRecognitionService.registerGuardianFace(
+    final isRegistered = await FaceRecognitionService.registerGuardianFace(
       guardianId: guardianId,
       imagePath: image.path,
     );
 
-    setState(() => _registeredGuardianId = guardianId);
-
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Guardian face registered')));
+    if (!isRegistered) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Face registration failed. Make sure one clear face is visible.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _registeredGuardianId = guardianId);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Guardian face registered')),
+    );
   }
 
   Future<void> _verifyFace() async {
@@ -1730,8 +1743,8 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unknown person detected'),
+        SnackBar(
+          content: Text((result['error'] as String?) ?? 'Unknown person detected'),
           backgroundColor: Colors.red,
         ),
       );
